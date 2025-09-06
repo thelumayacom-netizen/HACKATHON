@@ -72,7 +72,7 @@ const generateChatResponse = async (prompt, context = '') => {
 const OrderConfirmationModal = ({ order, onConfirm, onCancel }) => {
   const [isExecuting, setIsExecuting] = useState(false);
 
-  const handleConfirm = async () => {
+const handleConfirm = async () => {
     setIsExecuting(true);
     try {
       // Get current user
@@ -91,7 +91,7 @@ const OrderConfirmationModal = ({ order, onConfirm, onCancel }) => {
       });
       
       setIsExecuting(false);
-      onConfirm();
+      onConfirm(order);
     } catch (error) {
       setIsExecuting(false);
       console.error('Trade execution failed:', error);
@@ -100,7 +100,7 @@ const OrderConfirmationModal = ({ order, onConfirm, onCancel }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
       <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-md w-full">
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -342,13 +342,15 @@ export default function Investments() {
   // Order confirmation states
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
   const [pendingOrder, setPendingOrder] = useState(null);
+  const [accountBalance, setAccountBalance] = useState(50000);
 
   // Mock Zerodha account data (this would come from actual integration)
+ // Mock Zerodha account data (this would come from actual integration)
   const zerodhaAccount = {
     isConnected: true,
     accountId: "ZD1234",
-    username: "john_investor",
-    balance: 50000,
+    username: "Rishi",
+    balance: accountBalance,
     holdings: portfolioSummary?.holdings_count || 0,
     lastSync: "2 mins ago"
   };
@@ -463,6 +465,7 @@ export default function Investments() {
   };
 
   // Function to detect order commands and show confirmation
+  // Function to detect order commands and show confirmation
   const detectAndConfirmOrder = (message, response) => {
     const orderKeywords = ['buy', 'sell', 'invest', 'purchase'];
     const hasOrderKeyword = orderKeywords.some(keyword => 
@@ -480,6 +483,16 @@ export default function Investments() {
       
       // Get mock price (in real app, fetch from market data)
       const mockPrice = Math.floor(Math.random() * 1000) + 500;
+      const totalAmount = mockPrice * parseInt(quantity);
+      
+      // Check balance for BUY orders
+      if (orderType === 'BUY' && totalAmount > accountBalance) {
+        setTradingHistory(prev => [...prev, { 
+          type: 'ai', 
+          message: `❌ **Insufficient Balance**\n\nYou need ₹${totalAmount.toLocaleString()} to buy ${quantity} shares of ${stock.toUpperCase()}, but your available balance is ₹${accountBalance.toLocaleString()}.\n\n💡 Consider reducing the quantity or add funds to your account.` 
+        }]);
+        return false;
+      }
       
       const order = {
         stock: stock.toUpperCase(),
@@ -487,7 +500,7 @@ export default function Investments() {
         quantity: parseInt(quantity),
         type: orderType,
         price: mockPrice,
-        total: mockPrice * parseInt(quantity)
+        total: totalAmount
       };
       
       setPendingOrder(order);
@@ -558,12 +571,19 @@ export default function Investments() {
     }
   };
 
-  const handleOrderConfirm = () => {
+const handleOrderConfirm = (executedOrder) => {
+    // Update balance based on trade type
+    if (executedOrder.type === 'BUY') {
+      setAccountBalance(prev => prev - executedOrder.total);
+    } else if (executedOrder.type === 'SELL') {
+      setAccountBalance(prev => prev + executedOrder.total);
+    }
+
     setShowOrderConfirmation(false);
     // Add order success message to trading history
     setTradingHistory(prev => [...prev, { 
       type: 'ai', 
-      message: `✅ Order executed successfully!\n\n📊 **Order Details:**\n• Stock: ${pendingOrder.stock}\n• Quantity: ${pendingOrder.quantity} shares\n• Type: ${pendingOrder.type}\n• Total: ₹${pendingOrder.total.toLocaleString()}\n\n🎉 Your order has been placed via Zerodha. You'll receive a confirmation shortly!` 
+      message: `✅ Order executed successfully!\n\n📊 **Order Details:**\n• Stock: ${executedOrder.stock}\n• Quantity: ${executedOrder.quantity} shares\n• Type: ${executedOrder.type}\n• Total: ₹${executedOrder.total.toLocaleString()}\n• Updated Balance: ₹${executedOrder.type === 'BUY' ? (accountBalance - executedOrder.total).toLocaleString() : (accountBalance + executedOrder.total).toLocaleString()}\n\n🎉 Your order has been placed via Zerodha. You'll receive a confirmation shortly!` 
     }]);
     setPendingOrder(null);
     // Refresh portfolio data
@@ -637,7 +657,7 @@ export default function Investments() {
       )}
 
       {/* Main Screen Content */}
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-8">
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center p-24">
         <div className="text-center max-w-2xl">
           {/* Hero Section */}
           <div className="mb-8">
@@ -732,7 +752,7 @@ export default function Investments() {
 
       {/* Overlay */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] flex items-center justify-center p-4">
           <div className="w-full max-w-6xl h-[90vh] bg-gray-950 text-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-800">
