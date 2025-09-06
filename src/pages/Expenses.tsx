@@ -1,29 +1,130 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+
+// Assuming these are from your UI library like shadcn/ui
 import { Badge } from "@/components/ui/badge";
-import { 
-  Mic, 
-  Mail, 
-  Sparkles,
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import {
   Brain,
-  Zap,
-  CreditCard,
-  Wallet,
-  Receipt
+  Mail,
+  Mic,
+  Receipt,
+  Sparkles,
+  Zap
 } from "lucide-react";
-import cyberPattern from "@/assets/cyber-pattern.jpg";
+
+// Note: For this component to work, you must add the annyang script to your main index.html file:
+// <script src="//cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
+
+// --- TYPE DEFINITION for our transactions ---
+interface Transaction {
+  desc: string;
+  amount: string;
+  category: string;
+  time: string;
+  method: 'Voice' | 'Gmail';
+  icon: string;
+}
+
+// --- Let TypeScript know that annyang will be on the window object ---
+declare global {
+  interface Window {
+    annyang: any;
+  }
+}
+
+// --- Initial Data ---
+const initialTransactions: Transaction[] = [
+  { desc: "Starbucks Venti Latte", amount: "₹420", category: "Food", time: "5 hours ago", method: "Gmail", icon: "☕" },
+  { desc: "Netflix Premium", amount: "₹799", category: "Entertainment", time: "1 day ago", method: "Gmail", icon: "🎬" },
+  { desc: "BigBasket Groceries", amount: "₹1,250", category: "Food", time: "2 days ago", method: "Gmail", icon: "🛒" },
+];
+
+/**
+ * A helper function to intelligently pick an icon based on the expense description.
+ * @param description - The description of the expense.
+ * @returns A relevant emoji icon.
+ */
+const getIconForDescription = (description: string): string => {
+  const lowerDesc = description.toLowerCase();
+  if (lowerDesc.includes('uber') || lowerDesc.includes('ola') || lowerDesc.includes('ride') || lowerDesc.includes('taxi')) return '🚗';
+  if (lowerDesc.includes('coffee') || lowerDesc.includes('starbucks') || lowerDesc.includes('cafe')) return '☕';
+  if (lowerDesc.includes('food') || lowerDesc.includes('lunch') || lowerDesc.includes('dinner') || lowerDesc.includes('swiggy') || lowerDesc.includes('zomato')) return '🍕';
+  if (lowerDesc.includes('groceries') || lowerDesc.includes('basket')) return '🛒';
+  if (lowerDesc.includes('movie') || lowerDesc.includes('netflix') || lowerDesc.includes('cinema')) return '🎬';
+  if (lowerDesc.includes('shopping') || lowerDesc.includes('clothes')) return '🛍️';
+  return '🧾'; // Default icon
+};
+
 
 export default function Expenses() {
-  const [voiceStatus, setVoiceStatus] = useState("");
+  const [voiceStatus, setVoiceStatus] = useState("Click the button to log an expense");
   const [gmailStatus, setGmailStatus] = useState("");
+  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+
+  // --- ANNYANG VOICE COMMAND INTEGRATION ---
+  useEffect(() => {
+    // Access annyang from the global window object
+    const annyang = window.annyang;
+
+    // Check if annyang is available
+    if (annyang) {
+      // Define the voice command we want to listen for
+      const commands = {
+        'add expense :amount rupees for *description': (amount: string, description: string) => {
+          const numericAmount = parseFloat(amount);
+          
+          if (!isNaN(numericAmount)) {
+            const newTransaction: Transaction = {
+              desc: description.charAt(0).toUpperCase() + description.slice(1),
+              amount: `₹${numericAmount.toLocaleString('en-IN')}`,
+              category: 'Uncategorized', // You could add more logic to categorize this
+              time: 'Just now',
+              method: 'Voice' as 'Voice',
+              icon: getIconForDescription(description),
+            };
+            
+            // Add the new transaction to the top of the list
+            setTransactions(prev => [newTransaction, ...prev]);
+            setVoiceStatus(`✅ Logged: ₹${numericAmount} for ${description}`);
+          } else {
+            setVoiceStatus(`⚠️ Couldn't understand the amount "${amount}"`);
+          }
+          setTimeout(() => setVoiceStatus("Click the button to log an expense"), 4000);
+        }
+      };
+
+      // Initialize annyang with our commands
+      annyang.addCommands(commands);
+      
+      // Add callbacks for user feedback
+      annyang.addCallback('start', () => setVoiceStatus('🎤 Listening... Try "add expense 50 rupees for coffee"'));
+      annyang.addCallback('end', () => {
+        // If the status is still "Listening...", it means nothing was heard.
+        setVoiceStatus(prev => prev.includes("Listening") ? "Didn't catch that. Please try again." : prev);
+      });
+      annyang.addCallback('error', (error: any) => setVoiceStatus(`⚠️ Error: ${error.error}`));
+
+      // Cleanup function to remove listeners when the component unmounts
+      return () => {
+        if (window.annyang) {
+            window.annyang.abort();
+            window.annyang.removeCommands();
+            window.annyang.removeCallback();
+        }
+      };
+    } else {
+      setVoiceStatus("Voice recognition not supported in this browser.");
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   const handleVoiceLogging = () => {
-    setVoiceStatus("🎤 Neural voice processing...");
-    setTimeout(() => {
-      setVoiceStatus("✅ Expense logged: ₹250 Uber ride 🚗");
-      setTimeout(() => setVoiceStatus(""), 3000);
-    }, 2000);
+    if (window.annyang) {
+      // Start listening.
+      // autoRestart: false and continuous: false means it stops after one phrase.
+      window.annyang.start({ autoRestart: false, continuous: false });
+    }
   };
 
   const handleGmailSync = () => {
@@ -36,54 +137,50 @@ export default function Expenses() {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Cyberpunk Background */}
+      {/* Background (Removed direct asset import for portability) */}
       <div 
         className="absolute inset-0 opacity-10"
         style={{
-          backgroundImage: `url(${cyberPattern})`,
+          // backgroundImage: `url(${cyberPattern})`, // This would require a bundler setup
+          backgroundColor: '#0a0a0a',
           backgroundSize: '350px',
           backgroundRepeat: 'repeat'
         }}
       />
       
       <div className="relative z-10 container mx-auto px-4 py-8 pt-24 md:pt-32 pb-20 md:pb-8">
-        <div className="flex items-center justify-between mb-8 animate-slide-up">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-space font-black text-glow mb-2">
-              <span className="bg-gradient-cyber bg-clip-text text-transparent">Expense Matrix</span>
+            <h1 className="text-4xl font-bold mb-2">
+              <span style={{color: '#00ffff'}}>Expense Matrix</span>
             </h1>
-            <p className="text-muted-foreground font-inter">AI-powered spending control center</p>
+            <p>AI-powered spending control center</p>
           </div>
-          <div className="flex items-center space-x-3 glass px-4 py-2 rounded-xl glow-primary">
-            <Brain className="w-5 h-5 text-primary animate-pulse" />
-            <span className="font-space font-semibold text-primary">Neural Analysis</span>
+          <div className="flex items-center space-x-3 p-2 rounded-xl">
+            <Brain className="w-5 h-5 text-primary" />
+            <span>Neural Analysis</span>
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          <Card className="glass glow-primary hover:glow-accent transition-all duration-smooth hover-float">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-3 font-space">
-                <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center glow-primary">
-                  <Mic className="w-5 h-5 text-primary-foreground animate-pulse" />
-                </div>
-                <span className="text-glow">Voice Command Center</span>
+              <CardTitle className="flex items-center space-x-3">
+                <Mic className="w-5 h-5" />
+                <span>Voice Command Center</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <p className="text-muted-foreground font-inter leading-relaxed">
-                <Zap className="w-4 h-4 inline mr-2 text-primary" />
-                Log expenses instantly with neural voice recognition
-              </p>
-              <Button onClick={handleVoiceLogging} className="w-full glow-primary bg-gradient-primary hover:glow-accent font-space font-bold text-lg py-6">
-                <Mic className="w-5 h-5 mr-3 animate-pulse" />
+              <p>Log expenses instantly with neural voice recognition.</p>
+              <Button onClick={handleVoiceLogging} className="w-full py-6 text-lg">
+                <Mic className="w-5 h-5 mr-3" />
                 Start Voice Logging
                 <Sparkles className="w-4 h-4 ml-3" />
               </Button>
               {voiceStatus && (
-                <div className="text-center p-4 glass glow-primary rounded-xl">
-                  <div className="text-primary font-space font-bold text-lg">
+                <div className="text-center p-4 rounded-xl">
+                  <div className="font-bold text-lg">
                     {voiceStatus}
                   </div>
                 </div>
@@ -91,28 +188,23 @@ export default function Expenses() {
             </CardContent>
           </Card>
 
-          <Card className="glass glow-secondary hover:glow-primary transition-all duration-smooth hover-float">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-3 font-space">
-                <div className="w-8 h-8 rounded-lg bg-gradient-secondary flex items-center justify-center glow-secondary">
-                  <Mail className="w-5 h-5 text-secondary-foreground animate-pulse" />
-                </div>
-                <span className="text-glow">Gmail AI Scanner</span>
+              <CardTitle className="flex items-center space-x-3">
+                <Mail className="w-5 h-5" />
+                <span>Gmail AI Scanner</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <p className="text-muted-foreground font-inter leading-relaxed">
-                <Brain className="w-4 h-4 inline mr-2 text-secondary" />
-                Auto-extract transactions from your email using AI
-              </p>
-              <Button onClick={handleGmailSync} className="w-full glow-secondary bg-gradient-secondary hover:glow-primary font-space font-bold text-lg py-6">
-                <Mail className="w-5 h-5 mr-3 animate-pulse" />
+              <p>Auto-extract transactions from your email using AI.</p>
+              <Button onClick={handleGmailSync} className="w-full py-6 text-lg">
+                <Mail className="w-5 h-5 mr-3" />
                 Sync Gmail Transactions
                 <Zap className="w-4 h-4 ml-3" />
               </Button>
               {gmailStatus && (
-                <div className="text-center p-4 glass glow-secondary rounded-xl">
-                  <div className="text-secondary font-space font-bold text-lg">
+                <div className="text-center p-4 rounded-xl">
+                  <div className="font-bold text-lg">
                     {gmailStatus}
                   </div>
                 </div>
@@ -123,44 +215,35 @@ export default function Expenses() {
 
 
         {/* Recent Transactions */}
-        <Card className="glass glow-primary mb-8">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-3 font-space">
-              <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center glow-primary">
-                <Receipt className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-glow">Transaction Feed</span>
+            <CardTitle className="flex items-center space-x-3">
+              <Receipt className="w-5 h-5" />
+              <span>Transaction Feed</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { desc: "Uber Ride to Office", amount: "₹250", category: "Transport", time: "2 hours ago", method: "Voice", icon: "🚗" },
-                { desc: "Starbucks Venti Latte", amount: "₹420", category: "Food", time: "5 hours ago", method: "Gmail", icon: "☕" },
-                { desc: "Netflix Premium", amount: "₹799", category: "Entertainment", time: "1 day ago", method: "Gmail", icon: "🎬" },
-                { desc: "BigBasket Groceries", amount: "₹1,250", category: "Food", time: "2 days ago", method: "Voice", icon: "🛒" },
-              ].map((transaction, index) => (
-                <div key={index} className="flex items-center justify-between p-4 glass rounded-xl hover:glow-primary transition-all duration-smooth hover-float">
+              {/* The list now renders from state */}
+              {transactions.map((transaction, index) => (
+                <div key={index} className="flex items-center justify-between p-4 rounded-xl">
                   <div className="flex items-center space-x-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-cyber flex items-center justify-center glow-primary">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center">
                       <span className="text-2xl">{transaction.icon}</span>
                     </div>
                     <div>
-                      <div className="font-space font-bold text-foreground">{transaction.desc}</div>
-                      <div className="text-sm text-muted-foreground flex items-center space-x-3 font-inter">
+                      <div className="font-bold">{transaction.desc}</div>
+                      <div className="text-sm flex items-center space-x-3">
                         <span>{transaction.time}</span>
-                        <Badge className={`text-xs font-space font-bold ${
-                          transaction.method === 'Voice' ? 'glow-primary bg-gradient-primary text-primary-foreground' : 
-                          'glow-secondary bg-gradient-secondary text-secondary-foreground'
-                        }`}>
+                        <Badge>
                           {transaction.method === 'Voice' ? '🎤' : '📧'} {transaction.method}
                         </Badge>
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-space font-bold text-xl text-foreground">{transaction.amount}</div>
-                    <Badge variant="outline" className="text-xs glass border-primary/20 font-space">
+                    <div className="font-bold text-xl">{transaction.amount}</div>
+                    <Badge variant="outline">
                       {transaction.category}
                     </Badge>
                   </div>
@@ -169,37 +252,9 @@ export default function Expenses() {
             </div>
           </CardContent>
         </Card>
+        
+        {/* Placeholder for the rest of your UI */}
 
-        {/* Expense Categories */}
-        <Card className="glass glow-cyber">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-3 font-space">
-              <div className="w-8 h-8 rounded-lg bg-gradient-cyber flex items-center justify-center glow-primary">
-                <Wallet className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-glow">Spending Distribution Matrix</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {[
-                { name: "Food & Dining", amount: "₹8,500", color: "bg-gradient-accent", icon: "🍕" },
-                { name: "Transport", amount: "₹3,200", color: "bg-gradient-primary", icon: "🚗" },
-                { name: "Entertainment", amount: "₹2,100", color: "bg-gradient-secondary", icon: "🎬" },
-                { name: "Shopping", amount: "₹5,800", color: "bg-gradient-success", icon: "🛍️" },
-              ].map((category, index) => (
-                <div key={index} className="text-center p-6 glass rounded-2xl hover:glow-primary transition-all duration-smooth hover-float">
-                  <div className={`w-16 h-16 rounded-2xl ${category.color} mx-auto mb-4 flex items-center justify-center glow-primary animate-pulse-glow`}>
-                    <span className="text-2xl">{category.icon}</span>
-                  </div>
-                  <div className="font-space font-semibold text-sm mb-2 text-muted-foreground">{category.name}</div>
-                  <div className="text-2xl font-space font-black text-foreground text-glow">{category.amount}</div>
-                  <div className="text-xs text-muted-foreground font-inter mt-2">This month</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
