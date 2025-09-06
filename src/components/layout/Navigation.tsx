@@ -1,20 +1,4 @@
-import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { 
-  Home, 
-  PieChart, 
-  Trophy, 
-  TrendingUp, 
-  CreditCard,
-  DollarSign,
-  Menu,
-  X,
-  LogOut,
-  User
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +6,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
+import {
+  CreditCard,
+  DollarSign,
+  Home,
+  LogOut,
+  Menu,
+  PieChart,
+  TrendingUp,
+  Trophy,
+  User,
+  X
+} from "lucide-react";
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 
 const navItems = [
   { path: "/", label: "Home", icon: Home },
@@ -37,6 +37,8 @@ export function Navigation() {
   const location = useLocation();
   const { user, signOut } = useAuth();
 
+  if (!user) return null;
+
   const handleSignOut = async () => {
     await signOut();
   };
@@ -44,14 +46,14 @@ export function Navigation() {
   return (
     <>
       {/* Desktop Navigation */}
-      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 glass border-b border-border/20">
+      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 bg-background border-b border-gray-800">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="w-10 h-10 rounded-xl bg-gradient-cyber flex items-center justify-center glow-primary group-hover:glow-accent transition-all duration-smooth">
-                <span className="text-primary-foreground font-space font-bold text-xl">S</span>
+            <Link to="/" className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
+                <span className="font-bold text-xl" style={{color: '#00ffff'}}>S</span>
               </div>
-              <span className="text-2xl font-space font-bold bg-gradient-primary bg-clip-text text-transparent text-glow">
+              <span className="text-2xl font-bold" style={{color: '#00ffff'}}>
                 StackX
               </span>
             </Link>
@@ -67,10 +69,11 @@ export function Navigation() {
                     size="sm"
                     asChild
                     className={cn(
-                      "transition-all duration-smooth font-space font-medium",
-                      isActive && "glow-primary bg-gradient-primary text-primary-foreground",
-                      !isActive && "hover:bg-muted/50 hover:text-primary"
+                      "transition-all duration-300 font-medium",
+                      isActive && "text-black",
+                      !isActive && "hover:bg-gray-800"
                     )}
+                    style={isActive ? {backgroundColor: '#00ffff'} : {}}
                   >
                     <Link to={item.path}>
                       <Icon className="w-4 h-4 mr-2" />
@@ -83,7 +86,7 @@ export function Navigation() {
               {user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="ml-4">
+                    <Button variant="ghost" size="sm" className="ml-4 hover:bg-gray-800">
                       <User className="w-4 h-4 mr-2" />
                       Account
                     </Button>
@@ -107,14 +110,14 @@ export function Navigation() {
       </nav>
 
       {/* Mobile Navigation */}
-      <nav className="md:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border/20">
+      <nav className="md:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-gray-800">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="w-8 h-8 rounded-xl bg-gradient-cyber flex items-center justify-center glow-primary group-hover:glow-accent transition-all duration-smooth">
-                <span className="text-primary-foreground font-space font-bold text-lg">S</span>
+            <Link to="/" className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
+                <span className="font-bold text-lg" style={{color: '#00ffff'}}>S</span>
               </div>
-              <span className="text-xl font-space font-bold bg-gradient-primary bg-clip-text text-transparent">
+              <span className="text-xl font-bold" style={{color: '#00ffff'}}>
                 StackX
               </span>
             </Link>
@@ -123,7 +126,7 @@ export function Navigation() {
               variant="ghost"
               size="sm"
               onClick={() => setIsOpen(!isOpen)}
-              className="hover:glow-primary"
+              className="hover:bg-gray-800"
             >
               {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
@@ -132,7 +135,7 @@ export function Navigation() {
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 glass border-b border-border/20 shadow-cyber">
+          <div className="absolute top-full left-0 right-0 bg-background border-b border-gray-800 shadow-lg">
             <div className="px-4 py-3 space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -144,9 +147,11 @@ export function Navigation() {
                     size="sm"
                     asChild
                     className={cn(
-                      "w-full justify-start font-space",
-                      isActive && "glow-primary bg-gradient-primary"
+                      "w-full justify-start",
+                      isActive && "text-black",
+                      !isActive && "hover:bg-gray-800"
                     )}
+                    style={isActive ? {backgroundColor: '#00ffff'} : {}}
                     onClick={() => setIsOpen(false)}
                   >
                     <Link to={item.path}>
@@ -161,7 +166,7 @@ export function Navigation() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start"
+                  className="w-full justify-start hover:bg-gray-800"
                   onClick={() => {
                     handleSignOut();
                     setIsOpen(false);
@@ -177,7 +182,7 @@ export function Navigation() {
       </nav>
 
       {/* Bottom Mobile Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 glass border-t border-border/20">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t border-gray-800">
         <div className="grid grid-cols-5 py-2">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -187,13 +192,14 @@ export function Navigation() {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex flex-col items-center justify-center py-2 px-1 text-xs transition-all duration-smooth font-space font-medium",
+                  "flex flex-col items-center justify-center py-2 px-1 text-xs transition-all duration-300 font-medium",
                   isActive 
-                    ? "text-primary glow-primary" 
-                    : "text-muted-foreground hover:text-primary hover:scale-110"
+                    ? "scale-105" 
+                    : "text-muted-foreground hover:scale-110"
                 )}
+                style={isActive ? {color: '#00ffff'} : {}}
               >
-                <Icon className={cn("w-5 h-5 mb-1", isActive && "scale-110 text-glow")} />
+                <Icon className={cn("w-5 h-5 mb-1", isActive && "scale-110")} />
                 <span className="truncate">{item.label}</span>
               </Link>
             );
