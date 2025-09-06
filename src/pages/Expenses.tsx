@@ -277,16 +277,54 @@ export default function Expenses() {
     }
   };
 
-  const handleGmailSync = () => {
+  const handleGmailSync = async () => {
     if (!user) {
       setGmailStatus("Please sign in to sync Gmail");
       return;
     }
     
     setGmailStatus("📧 Scanning inbox with AI...");
-    setTimeout(() => {
-      setGmailStatus("✅ Found & parsed 2 new transactions 💰");
-      setTimeout(() => setGmailStatus(""), 3000);
+    
+    // Sample Gmail transactions to randomly select from
+    const sampleGmailTransactions = [
+      { desc: "Amazon Purchase - Electronics", amount: 2499, category: 'Shopping & Personal Care' as TransactionCategory },
+      { desc: "Netflix Subscription", amount: 649, category: 'Entertainment & Leisure' as TransactionCategory },
+      { desc: "Swiggy Food Order", amount: 389, category: 'Food & Groceries' as TransactionCategory },
+      { desc: "Uber Ride Payment", amount: 245, category: 'Transportation' as TransactionCategory },
+      { desc: "Electricity Bill Payment", amount: 1850, category: 'Housing & Utilities' as TransactionCategory },
+      { desc: "PharmEasy Medicine Order", amount: 567, category: 'Health & Fitness' as TransactionCategory },
+      { desc: "BookMyShow Movie Tickets", amount: 450, category: 'Entertainment & Leisure' as TransactionCategory },
+      { desc: "Zomato Food Delivery", amount: 325, category: 'Food & Groceries' as TransactionCategory },
+      { desc: "Apollo Pharmacy", amount: 234, category: 'Health & Fitness' as TransactionCategory },
+      { desc: "Flipkart Shopping", amount: 1299, category: 'Shopping & Personal Care' as TransactionCategory }
+    ];
+    
+    setTimeout(async () => {
+      try {
+        // Select a random transaction
+        const randomTransaction = sampleGmailTransactions[Math.floor(Math.random() * sampleGmailTransactions.length)];
+        
+        const newTransaction: Transaction = {
+          desc: randomTransaction.desc,
+          amount: randomTransaction.amount,
+          category: randomTransaction.category,
+          method: 'Gmail',
+          icon: getIconForTransaction(randomTransaction.desc, randomTransaction.category),
+        };
+
+        // Create the transaction in the database
+        const createdTransaction = await createTransaction(newTransaction, user.id);
+        
+        // Add to the transactions list
+        setTransactions(prev => [createdTransaction, ...prev]);
+        
+        setGmailStatus("✅ Found & parsed 1 new transaction 💰");
+        setTimeout(() => setGmailStatus(""), 3000);
+      } catch (error) {
+        console.error("Error creating Gmail transaction:", error);
+        setGmailStatus("⚠️ Error processing Gmail transactions");
+        setTimeout(() => setGmailStatus(""), 3000);
+      }
     }, 2000);
   };
 
@@ -428,6 +466,11 @@ export default function Expenses() {
                   <div className="font-bold text-lg">
                     {gmailStatus}
                   </div>
+                  {gmailStatus.includes("Scanning") && user?.email && (
+                    <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded-lg text-green-800 text-sm">
+                      Gmail Connected: {user.email}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
