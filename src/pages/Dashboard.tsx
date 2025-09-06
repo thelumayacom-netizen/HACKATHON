@@ -502,11 +502,25 @@ import {
   Zap
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { portfolioService, type PortfolioDistribution, type AdditionalHoldings } from "@/lib/portfolioService.ts";
+import { authService } from "@/lib/auth.ts";
 
 export default function Dashboard() {
   const [analysis, setAnalysis] = useState("");
   const [personality, setPersonality] = useState("");
-  const [portfolio, setPortfolio] = useState<{ [key: string]: number } | null>(null);
+  const [portfolioDistribution, setPortfolioDistribution] = useState<PortfolioDistribution | null>(null);
+  const [additionalHoldings, setAdditionalHoldings] = useState<AdditionalHoldings>({
+    user_id: '',
+    cash_amount: 0,
+    crypto_amount: 0,
+    miscellaneous_amount: 0
+  });
+  const [isEditingHoldings, setIsEditingHoldings] = useState(false);
+  const [tempHoldings, setTempHoldings] = useState<{ cash: string; crypto: string; misc: string }>({
+    cash: '',
+    crypto: '',
+    misc: ''
+  });
   const [simulationInput, setSimulationInput] = useState("");
   const [simulationResult, setSimulationResult] = useState("");
   const [simulatorMode, setSimulatorMode] = useState('wealth');
@@ -536,15 +550,67 @@ export default function Dashboard() {
   };
 
   const fetchPortfolio = async () => {
-    // TODO: replace with Supabase query
-    // const { data } = await supabase.from("portfolio").select("*");
-    setPortfolio({
-      stocks: 40,
-      crypto: 20,
-      bonds: 25,
-      cash: 15
-    });
+    try {
+      const { user } = await authService.getCurrentUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return;
+      }
+
+      // Fetch portfolio distribution
+      const distributionResult = await portfolioService.getPortfolioDistribution(user.id);
+      if (distributionResult.error) {
+        console.error('Error fetching portfolio distribution:', distributionResult.error);
+      } else {
+        setPortfolioDistribution(distributionResult.data);
+      }
+
+      // Fetch additional holdings for editing
+      const holdingsResult = await portfolioService.getAdditionalHoldings(user.id);
+      if (holdingsResult.error) {
+        console.error('Error fetching additional holdings:', holdingsResult.error);
+      } else {
+        const holdings = holdingsResult.data || { cash_amount: 0, crypto_amount: 0, miscellaneous_amount: 0 };
+        setAdditionalHoldings({ ...holdings, user_id: user.id });
+        setTempHoldings({
+          cash: holdings.cash_amount?.toString() || '0',
+          crypto: holdings.crypto_amount?.toString() || '0',
+          misc: holdings.miscellaneous_amount?.toString() || '0'
+        });
+      }
+    } catch (error) {
+      console.error('Error in fetchPortfolio:', error);
+    }
   };
+
+  const handleUpdateHoldings = async () => {
+    try {
+      const { user } = await authService.getCurrentUser();
+      if (!user) return;
+
+      const updatedHoldings = {
+        cash_amount: parseFloat(tempHoldings.cash) || 0,
+        crypto_amount: parseFloat(tempHoldings.crypto) || 0,
+        miscellaneous_amount: parseFloat(tempHoldings.misc) || 0,
+      };
+
+      const result = await portfolioService.updateAdditionalHoldings(user.id, updatedHoldings);
+
+      if (result.error) {
+        console.error('Error updating holdings:', result.error);
+        return;
+      }
+
+      setAdditionalHoldings({ ...updatedHoldings, user_id: user.id });
+      setIsEditingHoldings(false);
+
+      // Refresh portfolio distribution
+      await fetchPortfolio();
+    } catch (error) {
+      console.error('Error updating holdings:', error);
+    }
+  };
+
 
   const handleSimulation = () => {
     const savings = parseFloat(simulationInput);
@@ -932,57 +998,149 @@ export default function Dashboard() {
           <TabsContent value="portfolio" className="space-y-8">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-3 text-2xl">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#00ffff20' }}>
-                    <PieChart className="w-7 h-7" style={{ color: '#00ffff' }} />
+                <CardTitle className="flex items-center justify-between text-2xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#00ffff20' }}>
+                      <PieChart className="w-7 h-7" style={{ color: '#00ffff' }} />
+                    </div>
+                    <span>Asset Distribution Matrix</span>
                   </div>
-                  <span>Asset Distribution Matrix</span>
+                  <Button
+                    onClick={() => setIsEditingHoldings(!isEditingHoldings)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {isEditingHoldings ? 'Cancel' : 'Edit Holdings'}
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {isEditingHoldings ? (
                   <div className="space-y-6">
-                    {portfolio && Object.entries(portfolio).map(([asset, percentage]) => (
-                      <div key={asset} className="space-y-3">
-                        <div className="flex justify-between text-lg">
-                          <span className="capitalize font-semibold flex items-center">
-                            <div className={`w-4 h-4 rounded-full mr-3`}
-                              style={{ backgroundColor: '#00ffff' }} />
-                            {asset}
-                          </span>
-                          <span className="font-bold text-xl" style={{ color: '#00ffff' }}>{percentage}%</span>
-                        </div>
-                        <Progress
-                          value={percentage as number}
-                          className="h-4"
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Cash Amount (₹)</label>
+                        <Input
+                          type="number"
+                          value={tempHoldings.cash}
+                          onChange={(e) => setTempHoldings(prev => ({ ...prev, cash: e.target.value }))}
+                          placeholder="Enter cash amount"
                         />
                       </div>
-                    ))}
-                  </div>
-                  <div className="space-y-6">
-                    <div className="p-6 rounded-2xl border border-gray-800">
-                      <h3 className="font-bold text-xl mb-4">Portfolio Insights</h3>
-                      <div className="space-y-4 text-sm">
-                        <p className="flex items-center">
-                          <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#00ffff' }}></span>
-                          Stocks dominate your portfolio at 40% - good for growth
-                        </p>
-                        <p className="flex items-center">
-                          <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#00ffff' }}></span>
-                          Crypto allocation at 20% shows risk appetite
-                        </p>
-                        <p className="flex items-center">
-                          <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#00ffff' }}></span>
-                          Bonds provide stability with 25% allocation
-                        </p>
-                        <p className="flex items-center">
-                          <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#00ffff' }}></span>
-                          Cash reserves at 15% for opportunities
-                        </p>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Crypto Value (₹)</label>
+                        <Input
+                          type="number"
+                          value={tempHoldings.crypto}
+                          onChange={(e) => setTempHoldings(prev => ({ ...prev, crypto: e.target.value }))}
+                          placeholder="Enter crypto value"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Linked via WazirX</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Miscellaneous (₹)</label>
+                        <Input
+                          type="number"
+                          value={tempHoldings.misc}
+                          onChange={(e) => setTempHoldings(prev => ({ ...prev, misc: e.target.value }))}
+                          placeholder="Enter misc amount"
+                        />
                       </div>
                     </div>
+                    <div className="flex space-x-4">
+                      <Button onClick={handleUpdateHoldings} className="flex-1">
+                        Save Holdings
+                      </Button>
+                      <Button
+                        onClick={() => setIsEditingHoldings(false)}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      {portfolioDistribution && Object.entries(portfolioDistribution)
+                        .filter(([key]) => key !== 'total')
+                        .map(([asset, percentage], index) => {
+                          const colors = ['#00ffff', '#ff6b6b', '#4ecdc4', '#45b7d1'];
+                          const color = colors[index % colors.length];
+
+                          return (
+                            <div key={asset} className="space-y-3">
+                              <div className="flex justify-between text-lg">
+                                <span className="capitalize font-semibold flex items-center">
+                                  <div
+                                    className="w-4 h-4 rounded-full mr-3"
+                                    style={{ backgroundColor: color }}
+                                  />
+                                  {asset === 'miscellaneous' ? 'Miscellaneous' : asset}
+                                  {asset === 'crypto' && (
+                                    <span className="text-xs text-muted-foreground ml-2">(WazirX)</span>
+                                  )}
+                                  {asset === 'stocks' && (
+                                    <span className="text-xs text-muted-foreground ml-2">(Live)</span>
+                                  )}
+                                </span>
+                                <span className="font-bold text-xl" style={{ color }}>
+                                  {percentage}%
+                                </span>
+                              </div>
+                              <Progress value={percentage as number} className="h-4" />
+                            </div>
+                          );
+                        })}
+                    </div>
+                    <div className="space-y-6">
+                      <div className="p-6 rounded-2xl border border-gray-800">
+                        <h3 className="font-bold text-xl mb-4">Portfolio Insights</h3>
+                        <div className="space-y-4 text-sm">
+                          <p className="flex items-center">
+                            <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#00ffff' }}></span>
+                            {portfolioDistribution?.stocks
+                              ? `Stocks represent ${portfolioDistribution.stocks}% of your portfolio`
+                              : 'No stock holdings detected'}
+                          </p>
+                          <p className="flex items-center">
+                            <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#ff6b6b' }}></span>
+                            {portfolioDistribution?.crypto
+                              ? `Crypto allocation at ${portfolioDistribution.crypto}% (WazirX integration)`
+                              : 'No crypto holdings'}
+                          </p>
+                          <p className="flex items-center">
+                            <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#4ecdc4' }}></span>
+                            {portfolioDistribution?.cash
+                              ? `Cash reserves at ${portfolioDistribution.cash}% for liquidity`
+                              : 'No cash holdings'}
+                          </p>
+                          <p className="flex items-center">
+                            <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#45b7d1' }}></span>
+                            {portfolioDistribution?.miscellaneous
+                              ? `Miscellaneous assets at ${portfolioDistribution.miscellaneous}%`
+                              : 'No miscellaneous holdings'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {portfolioDistribution && (
+                        <div className="p-6 rounded-2xl border border-gray-800">
+                          <h3 className="font-bold text-xl mb-4">Total Portfolio Value</h3>
+                          <div className="text-center">
+                            <div className="text-3xl font-bold mb-2" style={{ color: '#00ffff' }}>
+                              ₹{portfolioDistribution.total.toLocaleString('en-IN')}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Across {Object.entries(portfolioDistribution).filter(([key, value]) => key !== 'total' && value > 0).length} asset classes
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

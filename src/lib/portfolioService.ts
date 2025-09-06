@@ -42,6 +42,25 @@ export interface PriceUpdate {
   [stock_symbol: string]: number;
 }
 
+
+export interface AdditionalHoldings {
+  id?: string;
+  user_id: string;
+  cash_amount: number;
+  crypto_amount: number;
+  miscellaneous_amount: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PortfolioDistribution {
+  stocks: number;
+  crypto: number;
+  cash: number;
+  miscellaneous: number;
+  total: number;
+}
+
 /**
  * Following the same pattern as transactions file - cast supabase to any
  * to avoid TypeScript errors with generated types
@@ -99,8 +118,8 @@ export const portfolioService = {
         summary.total_invested = data.reduce((sum, item) => sum + Number(item.total_invested), 0);
         summary.current_value = data.reduce((sum, item) => sum + Number(item.current_value), 0);
         summary.total_pnl = data.reduce((sum, item) => sum + Number(item.pnl), 0);
-        summary.total_pnl_percentage = summary.total_invested > 0 
-          ? (summary.total_pnl / summary.total_invested) * 100 
+        summary.total_pnl_percentage = summary.total_invested > 0
+          ? (summary.total_pnl / summary.total_invested) * 100
           : 0;
       }
 
@@ -144,11 +163,11 @@ export const portfolioService = {
       // For SELL orders, check if user has enough shares
       if (trade_type === 'SELL') {
         const positionResult = await this.getStockPosition(userId, stock_symbol);
-        
+
         if (positionResult.error) {
           return { data: null, error: positionResult.error };
         }
-        
+
         const position = positionResult.data;
         if (!position || position.quantity < quantity) {
           return { data: null, error: 'Insufficient shares to sell' };
@@ -316,13 +335,13 @@ export const portfolioService = {
         if (!acc[date]) {
           acc[date] = { date, invested: 0, redeemed: 0, net: 0 };
         }
-        
+
         if (trade.trade_type === 'BUY') {
           acc[date].invested += Number(trade.total_amount);
         } else {
           acc[date].redeemed += Number(trade.total_amount);
         }
-        
+
         acc[date].net = acc[date].invested - acc[date].redeemed;
         return acc;
       }, {});
@@ -387,12 +406,120 @@ export const portfolioService = {
     // This is a mock implementation
     // In production, integrate with real stock price API
     const prices: PriceUpdate = {};
-    
+
     for (const symbol of stockSymbols) {
       // Generate mock price (replace with real API call)
       prices[symbol] = Math.floor(Math.random() * 1000) + 500;
     }
-    
+
     return prices;
-  }
+  },
+
+
+  async getAdditionalHoldings(userId: string) {
+    try {
+      const resp = await (sb
+        .from('additional_holdings')
+        .select('*')
+        .eq('user_id', userId)
+        .single() as unknown as { data: any; error: any });
+
+      const { data, error } = resp;
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+        console.error('Additional holdings fetch error:', error);
+        return { data: null, error: error.message ?? JSON.stringify(error) };
+      }
+
+      // Return default values if no record exists
+      if (!data) {
+        return {
+          data: {
+            cash_amount: 0,
+            crypto_amount: 0,
+            miscellaneous_amount: 0
+          },
+          error: null
+        };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Get additional holdings exception:', error);
+      return { data: null, error: 'Failed to fetch additional holdings' };
+    }
+  },
+
+  // Update additional holdings
+  async updateAdditionalHoldings(userId: string, holdings: Partial<AdditionalHoldings>) {
+    try {
+      // First try to update existing record
+      const resp = await (sb
+        .from('additional_holdings')
+        .upsert({
+          user_id: userId,
+          ...holdings
+        })
+        .select()
+        .single() as unknown as { data: any; error: any });
+
+      const { data, error } = resp;
+
+      if (error) {
+        console.error('Update additional holdings error:', error);
+        return { data: null, error: error.message ?? JSON.stringify(error) };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Update additional holdings exception:', error);
+      return { data: null, error: 'Failed to update additional holdings' };
+    }
+  },
+
+  // Get complete portfolio distribution
+  async getPortfolioDistribution(userId: string): Promise<{ data: PortfolioDistribution | null, error: string | null }> {
+    try {
+      // Get stocks value from portfolio table (not assets table)
+      const stocksResp = await (sb
+        .from('portfolio')
+        .select('current_value')
+        .eq('user_id', userId) as unknown as { data: any[] | null; error: any });
+
+      if (stocksResp.error) {
+        console.error('Stocks portfolio fetch error:', stocksResp.error);
+        return { data: null, error: stocksResp.error.message ?? JSON.stringify(stocksResp.error) };
+      }
+
+      const stocksValue = stocksResp.data?.reduce((sum, item) => sum + Number(item.current_value || 0), 0) || 0;
+
+      // Get additional holdings
+      const holdingsResult = await this.getAdditionalHoldings(userId);
+
+      if (holdingsResult.error) {
+        return { data: null, error: holdingsResult.error };
+      }
+
+      const holdings = holdingsResult.data || { cash_amount: 0, crypto_amount: 0, miscellaneous_amount: 0 };
+
+      const cryptoValue = Number(holdings.crypto_amount || 0);
+      const cashValue = Number(holdings.cash_amount || 0);
+      const miscValue = Number(holdings.miscellaneous_amount || 0);
+
+      const total = stocksValue + cryptoValue + cashValue + miscValue;
+
+      const distribution: PortfolioDistribution = {
+        stocks: total > 0 ? Math.round((stocksValue / total) * 100) : 0,
+        crypto: total > 0 ? Math.round((cryptoValue / total) * 100) : 0,
+        cash: total > 0 ? Math.round((cashValue / total) * 100) : 0,
+        miscellaneous: total > 0 ? Math.round((miscValue / total) * 100) : 0,
+        total: total
+      };
+
+      return { data: distribution, error: null };
+    } catch (error) {
+      console.error('Get portfolio distribution exception:', error);
+      return { data: null, error: 'Failed to fetch portfolio distribution' };
+    }
+  },
 };
