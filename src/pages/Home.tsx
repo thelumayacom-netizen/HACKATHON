@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, Brain, Coffee, Shield, TrendingUp, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Home() {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Cyberpunk Background */}
@@ -28,6 +31,42 @@ export default function Home() {
       />
       
       <div className="relative z-10 container mx-auto px-4 py-8 pt-24 md:pt-32">
+        {/* Navigation for Home page */}
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/20">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <Link to="/" className="flex items-center space-x-3 group">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
+                  <span className="font-bold text-xl" style={{color: '#00ffff'}}>S</span>
+                </div>
+                <span className="text-2xl font-bold" style={{color: '#00ffff'}}>
+                  StackX
+                </span>
+              </Link>
+
+              <div className="flex items-center space-x-4">
+                {user ? (
+                  <Button asChild>
+                    <Link to="/dashboard">
+                      <TrendingUp className="w-4 h-4 mr-2" />
+                      Dashboard
+                    </Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="ghost" asChild>
+                      <Link to="/login">Sign In</Link>
+                    </Button>
+                    <Button asChild>
+                      <Link to="/signup">Get Started</Link>
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </nav>
+
         {/* Hero Section */}
         <div className="text-center mb-16 animate-slide-up">
           <div className="mb-8">
@@ -45,17 +84,17 @@ export default function Home() {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center mb-12">
-            <Button size="lg" className="group glow-primary bg-gradient-primary hover:glow-accent font-space font-bold text-lg px-8 py-4 hover-float" asChild>
-              <Link to="/dashboard">
+            <Button size="lg" className="font-bold text-lg px-8 py-4" asChild>
+              <Link to={user ? "/dashboard" : "/signup"}>
                 <Zap className="w-5 h-5 mr-2 group-hover:animate-pulse" />
-                Start Building Wealth
+                {user ? "Go to Dashboard" : "Start Building Wealth"}
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
-            <Button variant="outline" size="lg" className="group glass hover:glow-secondary font-space font-bold text-lg px-8 py-4 cyber-border hover-float" asChild>
-              <Link to="/gamification">
+            <Button variant="outline" size="lg" className="font-bold text-lg px-8 py-4" asChild>
+              <Link to={user ? "/gamification" : "/login"}>
                 <TrendingUp className="w-5 h-5 mr-2 group-hover:animate-pulse" />
-                View Rewards
+                {user ? "View Rewards" : "Sign In"}
               </Link>
             </Button>
           </div>
@@ -152,9 +191,9 @@ export default function Home() {
             building generational wealth with StackX's AI-powered platform
           </p>
           <Button size="lg" className="group glow-accent bg-gradient-accent hover:glow-primary font-space font-bold text-xl px-12 py-6 hover-float" asChild>
-            <Link to="/dashboard">
+            <Link to={user ? "/dashboard" : "/signup"}>
               <Zap className="w-6 h-6 mr-3 group-hover:animate-pulse" />
-              Launch Your Empire
+              {user ? "Launch Your Empire" : "Join StackX Now"}
               <ArrowRight className="w-6 h-6 ml-3 group-hover:translate-x-2 transition-transform" />
             </Link>
           </Button>
