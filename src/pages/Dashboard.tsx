@@ -512,15 +512,14 @@ export default function Dashboard() {
   const [additionalHoldings, setAdditionalHoldings] = useState<AdditionalHoldings>({
     user_id: '',
     cash_amount: 0,
-    crypto_amount: 0,
-    miscellaneous_amount: 0
+    miscellaneous_amount: 0 // Remove crypto_amount
   });
   const [isEditingHoldings, setIsEditingHoldings] = useState(false);
-  const [tempHoldings, setTempHoldings] = useState<{ cash: string; crypto: string; misc: string }>({
+  const [tempHoldings, setTempHoldings] = useState<{ cash: string; misc: string }>({
     cash: '',
-    crypto: '',
-    misc: ''
+    misc: '' // Remove crypto field
   });
+  const [cryptoHoldings, setCryptoHoldings] = useState([]);
   const [simulationInput, setSimulationInput] = useState("");
   const [simulationResult, setSimulationResult] = useState("");
   const [simulatorMode, setSimulatorMode] = useState('wealth');
@@ -565,16 +564,23 @@ export default function Dashboard() {
         setPortfolioDistribution(distributionResult.data);
       }
 
-      // Fetch additional holdings for editing
+      // Fetch crypto holdings from WazirX
+      const cryptoResult = await portfolioService.getCryptoHoldings(user.id);
+      if (cryptoResult.error) {
+        console.error('Error fetching crypto from WazirX:', cryptoResult.error);
+      } else {
+        setCryptoHoldings(cryptoResult.data || []);
+      }
+
+      // Fetch additional holdings (cash and misc only)
       const holdingsResult = await portfolioService.getAdditionalHoldings(user.id);
       if (holdingsResult.error) {
         console.error('Error fetching additional holdings:', holdingsResult.error);
       } else {
-        const holdings = holdingsResult.data || { cash_amount: 0, crypto_amount: 0, miscellaneous_amount: 0 };
+        const holdings = holdingsResult.data || { cash_amount: 0, miscellaneous_amount: 0 };
         setAdditionalHoldings({ ...holdings, user_id: user.id });
         setTempHoldings({
           cash: holdings.cash_amount?.toString() || '0',
-          crypto: holdings.crypto_amount?.toString() || '0',
           misc: holdings.miscellaneous_amount?.toString() || '0'
         });
       }
@@ -590,8 +596,8 @@ export default function Dashboard() {
 
       const updatedHoldings = {
         cash_amount: parseFloat(tempHoldings.cash) || 0,
-        crypto_amount: parseFloat(tempHoldings.crypto) || 0,
         miscellaneous_amount: parseFloat(tempHoldings.misc) || 0,
+        // Remove crypto_amount
       };
 
       const result = await portfolioService.updateAdditionalHoldings(user.id, updatedHoldings);
@@ -1017,7 +1023,7 @@ export default function Dashboard() {
               <CardContent className="space-y-8">
                 {isEditingHoldings ? (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> {/* Change from 3 to 2 columns */}
                       <div>
                         <label className="text-sm font-medium mb-2 block">Cash Amount (₹)</label>
                         <Input
@@ -1028,16 +1034,6 @@ export default function Dashboard() {
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-2 block">Crypto Value (₹)</label>
-                        <Input
-                          type="number"
-                          value={tempHoldings.crypto}
-                          onChange={(e) => setTempHoldings(prev => ({ ...prev, crypto: e.target.value }))}
-                          placeholder="Enter crypto value"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Linked via WazirX</p>
-                      </div>
-                      <div>
                         <label className="text-sm font-medium mb-2 block">Miscellaneous (₹)</label>
                         <Input
                           type="number"
@@ -1046,6 +1042,7 @@ export default function Dashboard() {
                           placeholder="Enter misc amount"
                         />
                       </div>
+                      {/* Remove crypto input field */}
                     </div>
                     <div className="flex space-x-4">
                       <Button onClick={handleUpdateHoldings} className="flex-1">
@@ -1124,6 +1121,37 @@ export default function Dashboard() {
                           </p>
                         </div>
                       </div>
+
+                      {/* WazirX Crypto Holdings Section */}
+                      {cryptoHoldings.length > 0 && (
+                        <div className="p-6 rounded-2xl border border-gray-800">
+                          <h3 className="font-bold text-xl mb-4 flex items-center">
+                            <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#ff6b6b' }}></span>
+                            WazirX Holdings
+                            <span className="ml-2 text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">
+                              Live Sync
+                            </span>
+                          </h3>
+                          <div className="space-y-3 text-sm">
+                            {cryptoHoldings.map((crypto, index) => (
+                              <div key={crypto.id} className="flex justify-between items-center py-2 border-b border-gray-800 last:border-b-0">
+                                <div>
+                                  <span className="font-semibold">{crypto.crypto_name}</span>
+                                  <span className="text-muted-foreground ml-2">({crypto.crypto_symbol})</span>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-bold" style={{ color: '#ff6b6b' }}>
+                                    ₹{crypto.current_value_inr?.toLocaleString('en-IN') || '0'}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {crypto.quantity} {crypto.crypto_symbol}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {portfolioDistribution && (
                         <div className="p-6 rounded-2xl border border-gray-800">

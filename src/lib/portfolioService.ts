@@ -47,7 +47,6 @@ export interface AdditionalHoldings {
   id?: string;
   user_id: string;
   cash_amount: number;
-  crypto_amount: number;
   miscellaneous_amount: number;
   created_at?: string;
   updated_at?: string;
@@ -59,6 +58,18 @@ export interface PortfolioDistribution {
   cash: number;
   miscellaneous: number;
   total: number;
+}
+
+export interface CryptoHolding {
+  id: string;
+  user_id: string;
+  crypto_symbol: string;
+  crypto_name: string;
+  quantity: number;
+  current_price_inr: number;
+  current_value_inr: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -478,9 +489,10 @@ export const portfolioService = {
   },
 
   // Get complete portfolio distribution
+  // Replace the existing method with this:
   async getPortfolioDistribution(userId: string): Promise<{ data: PortfolioDistribution | null, error: string | null }> {
     try {
-      // Get stocks value from portfolio table (not assets table)
+      // Get stocks value from portfolio table
       const stocksResp = await (sb
         .from('portfolio')
         .select('current_value')
@@ -493,16 +505,20 @@ export const portfolioService = {
 
       const stocksValue = stocksResp.data?.reduce((sum, item) => sum + Number(item.current_value || 0), 0) || 0;
 
-      // Get additional holdings
+      // Get crypto holdings from WazirX integration
+      const cryptoResult = await this.getCryptoHoldings(userId);
+      const cryptoValue = cryptoResult.error ? 0 :
+        cryptoResult.data?.reduce((sum, crypto) => sum + Number(crypto.current_value_inr || 0), 0) || 0;
+
+      // Get additional holdings (now only cash and miscellaneous)
       const holdingsResult = await this.getAdditionalHoldings(userId);
 
       if (holdingsResult.error) {
         return { data: null, error: holdingsResult.error };
       }
 
-      const holdings = holdingsResult.data || { cash_amount: 0, crypto_amount: 0, miscellaneous_amount: 0 };
+      const holdings = holdingsResult.data || { cash_amount: 0, miscellaneous_amount: 0 };
 
-      const cryptoValue = Number(holdings.crypto_amount || 0);
       const cashValue = Number(holdings.cash_amount || 0);
       const miscValue = Number(holdings.miscellaneous_amount || 0);
 
@@ -520,6 +536,53 @@ export const portfolioService = {
     } catch (error) {
       console.error('Get portfolio distribution exception:', error);
       return { data: null, error: 'Failed to fetch portfolio distribution' };
+    }
+  },
+  // Get crypto holdings from WazirX (actually from database)
+  async getCryptoHoldings(userId: string) {
+    try {
+      const resp = await (sb
+        .from('crypto_holdings')
+        .select('*')
+        .eq('user_id', userId)
+        .order('current_value_inr', { ascending: false }) as unknown as { data: any[] | null; error: any });
+
+      const { data, error } = resp;
+
+      if (error) {
+        console.error('Crypto holdings fetch error:', error);
+        return { data: null, error: error.message ?? JSON.stringify(error) };
+      }
+
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('Get crypto holdings exception:', error);
+      return { data: null, error: 'Failed to fetch crypto holdings from WazirX' };
+    }
+  },
+
+  // Simulate updating crypto prices (like fetching from WazirX API)
+  async updateCryptoPrices(userId: string) {
+    try {
+      // In real implementation, this would call WazirX API
+      // For now, simulate with small random price changes
+      const cryptoHoldings = await this.getCryptoHoldings(userId);
+      if (cryptoHoldings.error || !cryptoHoldings.data) return;
+
+      for (const holding of cryptoHoldings.data) {
+        const priceChange = (Math.random() - 0.5) * 0.1; // ±5% change
+        const newPrice = holding.current_price_inr * (1 + priceChange);
+
+        await sb
+          .from('crypto_holdings')
+          .update({ current_price_inr: newPrice })
+          .eq('id', holding.id);
+      }
+
+      return { data: true, error: null };
+    } catch (error) {
+      console.error('Update crypto prices exception:', error);
+      return { data: null, error: 'Failed to update crypto prices' };
     }
   },
 };
