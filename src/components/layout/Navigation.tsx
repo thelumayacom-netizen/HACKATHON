@@ -21,7 +21,7 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const navItems = [
   { path: "/", label: "Home", icon: Home },
@@ -34,41 +34,24 @@ const navItems = [
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
-  if (!user) return null;
-
   const handleSignOut = async () => {
-    if (isSigningOut) return; // Prevent multiple clicks
-    
-    setIsSigningOut(true);
-    try {
-      await signOut();
-      // Navigate to login page after successful signout
-      navigate('/login');
-    } catch (error) {
-      console.error('Error during signout:', error);
-      // Even if there's an error, navigate to login since we cleared local state
-      navigate('/login');
-    } finally {
-      setIsSigningOut(false);
-    }
+    await signOut();
   };
 
   return (
     <>
       {/* Desktop Navigation */}
-      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 bg-background border-b border-gray-800">
+      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 glass border-b border-border/20">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
-                <span className="font-bold text-xl" style={{color: '#00ffff'}}>S</span>
+            <Link to="/" className="flex items-center space-x-3 group">
+              <div className="w-10 h-10 rounded-xl bg-gradient-cyber flex items-center justify-center glow-primary group-hover:glow-accent transition-all duration-smooth">
+                <span className="text-primary-foreground font-space font-bold text-xl">S</span>
               </div>
-              <span className="text-2xl font-bold" style={{color: '#00ffff'}}>
+              <span className="text-2xl font-space font-bold bg-gradient-primary bg-clip-text text-transparent text-glow">
                 StackX
               </span>
             </Link>
@@ -84,11 +67,10 @@ export function Navigation() {
                     size="sm"
                     asChild
                     className={cn(
-                      "transition-all duration-300 font-medium",
-                      isActive && "text-black",
-                      !isActive && "hover:bg-gray-800"
+                      "transition-all duration-smooth font-space font-medium",
+                      isActive && "glow-primary bg-gradient-primary text-primary-foreground",
+                      !isActive && "hover:bg-muted/50 hover:text-primary"
                     )}
-                    style={isActive ? {backgroundColor: '#00ffff'} : {}}
                   >
                     <Link to={item.path}>
                       <Icon className="w-4 h-4 mr-2" />
@@ -101,7 +83,7 @@ export function Navigation() {
               {user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="ml-4 hover:bg-gray-800">
+                    <Button variant="ghost" size="sm" className="ml-4">
                       <User className="w-4 h-4 mr-2" />
                       Account
                     </Button>
@@ -112,18 +94,9 @@ export function Navigation() {
                       {user.email}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut} disabled={isSigningOut}>
-                      {isSigningOut ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                          Signing Out...
-                        </>
-                      ) : (
-                        <>
-                          <LogOut className="w-4 h-4 mr-2" />
-                          Sign Out
-                        </>
-                      )}
+                    <DropdownMenuItem onClick={handleSignOut}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -134,14 +107,14 @@ export function Navigation() {
       </nav>
 
       {/* Mobile Navigation */}
-      <nav className="md:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-gray-800">
+      <nav className="md:hidden fixed top-0 left-0 right-0 z-50 glass border-b border-border/20">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
-                <span className="font-bold text-lg" style={{color: '#00ffff'}}>S</span>
+            <Link to="/" className="flex items-center space-x-3 group">
+              <div className="w-8 h-8 rounded-xl bg-gradient-cyber flex items-center justify-center glow-primary group-hover:glow-accent transition-all duration-smooth">
+                <span className="text-primary-foreground font-space font-bold text-lg">S</span>
               </div>
-              <span className="text-xl font-bold" style={{color: '#00ffff'}}>
+              <span className="text-xl font-space font-bold bg-gradient-primary bg-clip-text text-transparent">
                 StackX
               </span>
             </Link>
@@ -150,7 +123,7 @@ export function Navigation() {
               variant="ghost"
               size="sm"
               onClick={() => setIsOpen(!isOpen)}
-              className="hover:bg-gray-800"
+              className="hover:glow-primary"
             >
               {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
@@ -159,7 +132,7 @@ export function Navigation() {
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 bg-background border-b border-gray-800 shadow-lg">
+          <div className="absolute top-full left-0 right-0 glass border-b border-border/20 shadow-cyber">
             <div className="px-4 py-3 space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -171,11 +144,9 @@ export function Navigation() {
                     size="sm"
                     asChild
                     className={cn(
-                      "w-full justify-start",
-                      isActive && "text-black",
-                      !isActive && "hover:bg-gray-800"
+                      "w-full justify-start font-space",
+                      isActive && "glow-primary bg-gradient-primary"
                     )}
-                    style={isActive ? {backgroundColor: '#00ffff'} : {}}
                     onClick={() => setIsOpen(false)}
                   >
                     <Link to={item.path}>
@@ -190,24 +161,14 @@ export function Navigation() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start hover:bg-gray-800"
-                  disabled={isSigningOut}
+                  className="w-full justify-start"
                   onClick={() => {
                     handleSignOut();
                     setIsOpen(false);
                   }}
                 >
-                  {isSigningOut ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                      Signing Out...
-                    </>
-                  ) : (
-                    <>
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
-                    </>
-                  )}
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
                 </Button>
               )}
             </div>
@@ -216,7 +177,7 @@ export function Navigation() {
       </nav>
 
       {/* Bottom Mobile Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t border-gray-800">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 glass border-t border-border/20">
         <div className="grid grid-cols-5 py-2">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -226,14 +187,13 @@ export function Navigation() {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex flex-col items-center justify-center py-2 px-1 text-xs transition-all duration-300 font-medium",
+                  "flex flex-col items-center justify-center py-2 px-1 text-xs transition-all duration-smooth font-space font-medium",
                   isActive 
-                    ? "scale-105" 
-                    : "text-muted-foreground hover:scale-110"
+                    ? "text-primary glow-primary" 
+                    : "text-muted-foreground hover:text-primary hover:scale-110"
                 )}
-                style={isActive ? {color: '#00ffff'} : {}}
               >
-                <Icon className={cn("w-5 h-5 mb-1", isActive && "scale-110")} />
+                <Icon className={cn("w-5 h-5 mb-1", isActive && "scale-110 text-glow")} />
                 <span className="truncate">{item.label}</span>
               </Link>
             );
