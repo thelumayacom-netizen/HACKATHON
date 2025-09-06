@@ -75,7 +75,7 @@
 //           backgroundAttachment: 'fixed'
 //         }}
 //       />
-      
+
 //       <div className="relative z-10 container mx-auto px-4 py-8 pt-24 md:pt-32 pb-20 md:pb-8">
 //         <div className="flex items-center justify-between mb-8 animate-slide-up">
 //           <div>
@@ -501,9 +501,15 @@ import { useEffect, useState } from "react";
 export default function Dashboard() {
   const [analysis, setAnalysis] = useState("");
   const [personality, setPersonality] = useState("");
-  const [portfolio, setPortfolio] = useState<{[key: string]: number} | null>(null);
+  const [portfolio, setPortfolio] = useState<{ [key: string]: number } | null>(null);
   const [simulationInput, setSimulationInput] = useState("");
   const [simulationResult, setSimulationResult] = useState("");
+  const [simulatorMode, setSimulatorMode] = useState('wealth');
+  const [monthlyInvestment, setMonthlyInvestment] = useState('');
+  const [years, setYears] = useState('10');
+  const [targetAmount, setTargetAmount] = useState('');
+  const [goalName, setGoalName] = useState('');
+  const [results, setResults] = useState(null);
 
   useEffect(() => {
     // TODO: replace with Supabase query
@@ -544,10 +550,102 @@ export default function Dashboard() {
     }
   };
 
+
+
+  const popularGoals = [
+    { name: 'iPhone 15 Pro', amount: 134900 },
+    { name: 'Car Down Payment', amount: 200000 },
+    { name: 'Europe Trip', amount: 300000 },
+    { name: 'Laptop', amount: 80000 },
+    { name: 'Emergency Fund', amount: 500000 }
+  ];
+
+  const calculateCompoundInterest = (principal, monthlyContribution, annualRate, years) => {
+    const monthlyRate = annualRate / 12 / 100;
+    const totalMonths = years * 12;
+
+    // Future value of initial principal
+    const futureValuePrincipal = principal * Math.pow(1 + monthlyRate, totalMonths);
+
+    // Future value of monthly contributions
+    const futureValueContributions = monthlyContribution *
+      ((Math.pow(1 + monthlyRate, totalMonths) - 1) / monthlyRate);
+
+    return futureValuePrincipal + futureValueContributions;
+  };
+
+  const calculateTimeToGoal = (monthlyInvestment, targetAmount, annualRate) => {
+    const monthlyRate = annualRate / 12 / 100;
+    const months = Math.log(1 + (targetAmount * monthlyRate) / monthlyInvestment) / Math.log(1 + monthlyRate);
+    return Math.ceil(months);
+  };
+
+  const handleWealthCalculation = () => {
+    const monthly = parseFloat(monthlyInvestment) || 0;
+    const timeYears = parseFloat(years) || 10;
+
+    const conservativeRate = 8; // 8% for conservative
+    const moderateRate = 12; // 12% for moderate
+    const aggressiveRate = 15; // 15% for aggressive
+
+    const conservative = calculateCompoundInterest(0, monthly, conservativeRate, timeYears);
+    const moderate = calculateCompoundInterest(0, monthly, moderateRate, timeYears);
+    const aggressive = calculateCompoundInterest(0, monthly, aggressiveRate, timeYears);
+
+    const totalInvested = monthly * timeYears * 12;
+
+    setResults({
+      type: 'wealth',
+      conservative: Math.round(conservative),
+      moderate: Math.round(moderate),
+      aggressive: Math.round(aggressive),
+      totalInvested,
+      monthlyAmount: monthly,
+      timeYears
+    });
+  };
+
+  const handleGoalCalculation = () => {
+    const target = parseFloat(targetAmount) || 0;
+    const monthly = parseFloat(monthlyInvestment) || 0;
+
+    if (target === 0 || monthly === 0) return;
+
+    const conservativeMonths = calculateTimeToGoal(monthly, target, 8);
+    const moderateMonths = calculateTimeToGoal(monthly, target, 12);
+    const aggressiveMonths = calculateTimeToGoal(monthly, target, 15);
+
+    setResults({
+      type: 'goal',
+      target,
+      monthlyAmount: monthly,
+      goalName: goalName || 'Your Goal',
+      conservative: conservativeMonths,
+      moderate: moderateMonths,
+      aggressive: aggressiveMonths
+    });
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const formatMonths = (months) => {
+    const years = Math.floor(months / 12);
+    const remainingMonths = months % 12;
+    if (years === 0) return `${remainingMonths} months`;
+    if (remainingMonths === 0) return `${years} years`;
+    return `${years}y ${remainingMonths}m`;
+  };
+
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Background */}
-      <div 
+      <div
         className="absolute inset-0 opacity-10"
         style={{
           backgroundColor: '#0a0a0a',
@@ -555,12 +653,12 @@ export default function Dashboard() {
           backgroundRepeat: 'repeat'
         }}
       />
-      
+
       <div className="relative z-10 container mx-auto px-4 py-8 pt-24 md:pt-32 pb-20 md:pb-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold mb-2">
-              <span style={{color: '#00ffff'}}>Command Center</span>
+              <span style={{ color: '#00ffff' }}>Command Center</span>
             </h1>
             <p>Your financial empire awaits</p>
           </div>
@@ -605,15 +703,15 @@ export default function Dashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
-                      <Brain className="w-5 h-5" style={{color: '#00ffff'}} />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#00ffff20' }}>
+                      <Brain className="w-5 h-5" style={{ color: '#00ffff' }} />
                     </div>
                     <span>AI Market Oracle</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center py-6">
-                    <div className="text-3xl mb-4 font-bold" style={{color: '#00ffff'}}>
+                    <div className="text-3xl mb-4 font-bold" style={{ color: '#00ffff' }}>
                       {analysis || "Analyzing..."}
                     </div>
                     <p className="text-sm text-muted-foreground">
@@ -626,15 +724,15 @@ export default function Dashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
-                      <Target className="w-5 h-5" style={{color: '#00ffff'}} />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#00ffff20' }}>
+                      <Target className="w-5 h-5" style={{ color: '#00ffff' }} />
                     </div>
                     <span>Investor DNA</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center py-6">
-                    <div className="text-3xl font-bold mb-4" style={{color: '#00ffff'}}>
+                    <div className="text-3xl font-bold mb-4" style={{ color: '#00ffff' }}>
                       {personality || "Scanning..."}
                     </div>
                     <p className="text-sm text-muted-foreground">
@@ -647,18 +745,18 @@ export default function Dashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
-                      <Rocket className="w-5 h-5" style={{color: '#00ffff'}} />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#00ffff20' }}>
+                      <Rocket className="w-5 h-5" style={{ color: '#00ffff' }} />
                     </div>
                     <span>Empire Value</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center py-6">
-                    <div className="text-4xl font-bold mb-4" style={{color: '#00ffff'}}>₹2,45,000</div>
+                    <div className="text-4xl font-bold mb-4" style={{ color: '#00ffff' }}>₹2,45,000</div>
                     <div className="flex items-center justify-center text-sm p-2 rounded-full">
-                      <TrendingUp className="w-4 h-4 mr-2" style={{color: '#00ffff'}} />
-                      <span className="font-semibold" style={{color: '#00ffff'}}>+12.5% this month</span>
+                      <TrendingUp className="w-4 h-4 mr-2" style={{ color: '#00ffff' }} />
+                      <span className="font-semibold" style={{ color: '#00ffff' }}>+12.5% this month</span>
                     </div>
                   </div>
                 </CardContent>
@@ -673,17 +771,17 @@ export default function Dashboard() {
               <CardContent>
                 <div className="h-80 rounded-2xl flex items-center justify-center relative overflow-hidden border border-gray-800">
                   <div className="text-center">
-                    <TrendingUp className="w-16 h-16 mx-auto mb-6" style={{color: '#00ffff'}} />
-                    <p className="text-2xl font-bold mb-2" style={{color: '#00ffff'}}>
+                    <TrendingUp className="w-16 h-16 mx-auto mb-6" style={{ color: '#00ffff' }} />
+                    <p className="text-2xl font-bold mb-2" style={{ color: '#00ffff' }}>
                       Advanced Analytics Loading
                     </p>
                     <p className="text-muted-foreground">
                       Neural network processing your financial data...
                     </p>
                     <div className="mt-4 flex justify-center space-x-2">
-                      <div className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor: '#00ffff'}}></div>
-                      <div className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor: '#00ffff', animationDelay: '0.2s'}}></div>
-                      <div className="w-2 h-2 rounded-full animate-pulse" style={{backgroundColor: '#00ffff', animationDelay: '0.4s'}}></div>
+                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#00ffff' }}></div>
+                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#00ffff', animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#00ffff', animationDelay: '0.4s' }}></div>
                     </div>
                   </div>
                 </div>
@@ -696,15 +794,15 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-3 text-2xl">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
-                    <Brain className="w-7 h-7" style={{color: '#00ffff'}} />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#00ffff20' }}>
+                    <Brain className="w-7 h-7" style={{ color: '#00ffff' }} />
                   </div>
                   <span>AI Market Oracle</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-8">
                 <div className="text-center py-12">
-                  <div className="text-5xl mb-6 font-bold" style={{color: '#00ffff'}}>
+                  <div className="text-5xl mb-6 font-bold" style={{ color: '#00ffff' }}>
                     {analysis || "Analyzing..."}
                   </div>
                   <p className="text-xl text-muted-foreground mb-8">
@@ -714,17 +812,17 @@ export default function Dashboard() {
                     <div className="p-6 rounded-2xl border border-gray-800">
                       <div className="text-3xl mb-3">📊</div>
                       <h3 className="font-bold text-lg mb-2">Market Sentiment</h3>
-                      <p className="font-bold text-2xl" style={{color: '#00ffff'}}>Bullish</p>
+                      <p className="font-bold text-2xl" style={{ color: '#00ffff' }}>Bullish</p>
                     </div>
                     <div className="p-6 rounded-2xl border border-gray-800">
                       <div className="text-3xl mb-3">🎯</div>
                       <h3 className="font-bold text-lg mb-2">Confidence Level</h3>
-                      <p className="font-bold text-2xl" style={{color: '#00ffff'}}>94%</p>
+                      <p className="font-bold text-2xl" style={{ color: '#00ffff' }}>94%</p>
                     </div>
                     <div className="p-6 rounded-2xl border border-gray-800">
                       <div className="text-3xl mb-3">⚡</div>
                       <h3 className="font-bold text-lg mb-2">Risk Level</h3>
-                      <p className="font-bold text-2xl" style={{color: '#00ffff'}}>Moderate</p>
+                      <p className="font-bold text-2xl" style={{ color: '#00ffff' }}>Moderate</p>
                     </div>
                   </div>
                 </div>
@@ -737,15 +835,15 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-3 text-2xl">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
-                    <Target className="w-7 h-7" style={{color: '#00ffff'}} />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#00ffff20' }}>
+                    <Target className="w-7 h-7" style={{ color: '#00ffff' }} />
                   </div>
                   <span>Investor DNA Analysis</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-8">
                 <div className="text-center py-12">
-                  <div className="text-5xl font-bold mb-6" style={{color: '#00ffff'}}>
+                  <div className="text-5xl font-bold mb-6" style={{ color: '#00ffff' }}>
                     {personality || "Scanning..."}
                   </div>
                   <p className="text-xl text-muted-foreground mb-8">
@@ -753,29 +851,29 @@ export default function Dashboard() {
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="p-8 rounded-2xl border border-gray-800">
-                      <h3 className="font-bold text-xl mb-4" style={{color: '#00ffff'}}>Risk Tolerance</h3>
+                      <h3 className="font-bold text-xl mb-4" style={{ color: '#00ffff' }}>Risk Tolerance</h3>
                       <div className="space-y-4">
                         <div className="flex justify-between text-sm">
                           <span className="font-semibold">High Risk Appetite</span>
-                          <span className="font-bold" style={{color: '#00ffff'}}>85%</span>
+                          <span className="font-bold" style={{ color: '#00ffff' }}>85%</span>
                         </div>
                         <Progress value={85} className="h-3" />
                       </div>
                     </div>
                     <div className="p-8 rounded-2xl border border-gray-800">
-                      <h3 className="font-bold text-xl mb-4" style={{color: '#00ffff'}}>Investment Style</h3>
+                      <h3 className="font-bold text-xl mb-4" style={{ color: '#00ffff' }}>Investment Style</h3>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span>Aggressive Growth</span>
-                          <span className="font-bold" style={{color: '#00ffff'}}>70%</span>
+                          <span className="font-bold" style={{ color: '#00ffff' }}>70%</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Value Investing</span>
-                          <span className="font-bold" style={{color: '#00ffff'}}>20%</span>
+                          <span className="font-bold" style={{ color: '#00ffff' }}>20%</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Conservative</span>
-                          <span className="font-bold" style={{color: '#00ffff'}}>10%</span>
+                          <span className="font-bold" style={{ color: '#00ffff' }}>10%</span>
                         </div>
                       </div>
                     </div>
@@ -790,34 +888,34 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-3 text-2xl">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
-                    <Rocket className="w-7 h-7" style={{color: '#00ffff'}} />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#00ffff20' }}>
+                    <Rocket className="w-7 h-7" style={{ color: '#00ffff' }} />
                   </div>
                   <span>Empire Valuation</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-8">
                 <div className="text-center py-12">
-                  <div className="text-6xl font-bold mb-6" style={{color: '#00ffff'}}>₹2,45,000</div>
+                  <div className="text-6xl font-bold mb-6" style={{ color: '#00ffff' }}>₹2,45,000</div>
                   <div className="flex items-center justify-center text-lg px-6 py-3 rounded-full mb-8">
-                    <TrendingUp className="w-6 h-6 mr-3" style={{color: '#00ffff'}} />
-                    <span className="font-semibold" style={{color: '#00ffff'}}>+12.5% this month</span>
+                    <TrendingUp className="w-6 h-6 mr-3" style={{ color: '#00ffff' }} />
+                    <span className="font-semibold" style={{ color: '#00ffff' }}>+12.5% this month</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="p-6 rounded-2xl border border-gray-800">
                       <div className="text-3xl mb-3">💰</div>
                       <h3 className="font-bold text-lg mb-2">Total Assets</h3>
-                      <p className="font-bold text-2xl" style={{color: '#00ffff'}}>₹2,45,000</p>
+                      <p className="font-bold text-2xl" style={{ color: '#00ffff' }}>₹2,45,000</p>
                     </div>
                     <div className="p-6 rounded-2xl border border-gray-800">
                       <div className="text-3xl mb-3">📈</div>
                       <h3 className="font-bold text-lg mb-2">Monthly Growth</h3>
-                      <p className="font-bold text-2xl" style={{color: '#00ffff'}}>+12.5%</p>
+                      <p className="font-bold text-2xl" style={{ color: '#00ffff' }}>+12.5%</p>
                     </div>
                     <div className="p-6 rounded-2xl border border-gray-800">
                       <div className="text-3xl mb-3">🎯</div>
                       <h3 className="font-bold text-lg mb-2">Goal Progress</h3>
-                      <p className="font-bold text-2xl" style={{color: '#00ffff'}}>68%</p>
+                      <p className="font-bold text-2xl" style={{ color: '#00ffff' }}>68%</p>
                     </div>
                   </div>
                 </div>
@@ -830,8 +928,8 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-3 text-2xl">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
-                    <PieChart className="w-7 h-7" style={{color: '#00ffff'}} />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#00ffff20' }}>
+                    <PieChart className="w-7 h-7" style={{ color: '#00ffff' }} />
                   </div>
                   <span>Asset Distribution Matrix</span>
                 </CardTitle>
@@ -843,14 +941,14 @@ export default function Dashboard() {
                       <div key={asset} className="space-y-3">
                         <div className="flex justify-between text-lg">
                           <span className="capitalize font-semibold flex items-center">
-                            <div className={`w-4 h-4 rounded-full mr-3`} 
-                                 style={{backgroundColor: '#00ffff'}} />
+                            <div className={`w-4 h-4 rounded-full mr-3`}
+                              style={{ backgroundColor: '#00ffff' }} />
                             {asset}
                           </span>
-                          <span className="font-bold text-xl" style={{color: '#00ffff'}}>{percentage}%</span>
+                          <span className="font-bold text-xl" style={{ color: '#00ffff' }}>{percentage}%</span>
                         </div>
-                        <Progress 
-                          value={percentage as number} 
+                        <Progress
+                          value={percentage as number}
                           className="h-4"
                         />
                       </div>
@@ -861,19 +959,19 @@ export default function Dashboard() {
                       <h3 className="font-bold text-xl mb-4">Portfolio Insights</h3>
                       <div className="space-y-4 text-sm">
                         <p className="flex items-center">
-                          <span className="w-2 h-2 rounded-full mr-3" style={{backgroundColor: '#00ffff'}}></span>
+                          <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#00ffff' }}></span>
                           Stocks dominate your portfolio at 40% - good for growth
                         </p>
                         <p className="flex items-center">
-                          <span className="w-2 h-2 rounded-full mr-3" style={{backgroundColor: '#00ffff'}}></span>
+                          <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#00ffff' }}></span>
                           Crypto allocation at 20% shows risk appetite
                         </p>
                         <p className="flex items-center">
-                          <span className="w-2 h-2 rounded-full mr-3" style={{backgroundColor: '#00ffff'}}></span>
+                          <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#00ffff' }}></span>
                           Bonds provide stability with 25% allocation
                         </p>
                         <p className="flex items-center">
-                          <span className="w-2 h-2 rounded-full mr-3" style={{backgroundColor: '#00ffff'}}></span>
+                          <span className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: '#00ffff' }}></span>
                           Cash reserves at 15% for opportunities
                         </p>
                       </div>
@@ -889,56 +987,245 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-3 text-2xl">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{backgroundColor: '#00ffff20'}}>
-                    <Calculator className="w-7 h-7" style={{color: '#00ffff'}} />
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#00ffff20' }}>
+                    <Calculator className="w-7 h-7" style={{ color: '#00ffff' }} />
                   </div>
-                  <span>Wealth Simulator</span>
+                  <span>Smart Wealth Simulator</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-8">
-                <div className="max-w-2xl mx-auto">
-                  <div className="space-y-6">
-                    <div>
-                      <label className="text-lg font-semibold mb-4 block">
-                        Monthly Investment Amount (₹)
-                      </label>
-                      <Input
-                        type="number"
-                        placeholder="Enter amount..."
-                        value={simulationInput}
-                        onChange={(e) => setSimulationInput(e.target.value)}
-                        className="text-lg h-14"
-                      />
-                    </div>
-                    <Button onClick={handleSimulation} className="w-full font-bold text-xl py-6">
-                      <Zap className="w-6 h-6 mr-3" />
-                      Calculate Future Empire
+                <div className="max-w-4xl mx-auto">
+                  {/* Mode Selection */}
+                  <div className="flex space-x-4 mb-8">
+                    <Button
+                      onClick={() => setSimulatorMode('wealth')}
+                      variant={simulatorMode === 'wealth' ? 'default' : 'outline'}
+                      className="flex-1"
+                    >
+                      <TrendingUp className="w-4 h-4 mr-2" />
+                      Build Wealth
                     </Button>
-                    {simulationResult && (
-                      <div className="text-center p-8 rounded-xl border border-gray-800">
-                        <div className="text-4xl font-bold mb-4" style={{color: '#00ffff'}}>
-                          {simulationResult}
+                    <Button
+                      onClick={() => setSimulatorMode('goal')}
+                      variant={simulatorMode === 'goal' ? 'default' : 'outline'}
+                      className="flex-1"
+                    >
+                      <Target className="w-4 h-4 mr-2" />
+                      Reach Goal
+                    </Button>
+                  </div>
+
+                  {simulatorMode === 'wealth' ? (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="text-lg font-semibold mb-2 block">
+                            Monthly Investment (₹)
+                          </label>
+                          <Input
+                            type="number"
+                            placeholder="e.g., 5000"
+                            value={monthlyInvestment}
+                            onChange={(e) => setMonthlyInvestment(e.target.value)}
+                            className="text-lg h-12"
+                          />
                         </div>
-                        <p className="text-lg text-muted-foreground mb-6">
-                          Projected wealth with AI-optimized 12% returns
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="p-4 rounded-xl border border-gray-800">
-                            <div className="text-2xl mb-2">🎯</div>
-                            <div className="font-bold" style={{color: '#00ffff'}}>Target Achieved</div>
-                          </div>
-                          <div className="p-4 rounded-xl border border-gray-800">
-                            <div className="text-2xl mb-2">📊</div>
-                            <div className="font-bold" style={{color: '#00ffff'}}>12% Annual Return</div>
-                          </div>
-                          <div className="p-4 rounded-xl border border-gray-800">
-                            <div className="text-2xl mb-2">⚡</div>
-                            <div className="font-bold" style={{color: '#00ffff'}}>AI Optimized</div>
-                          </div>
+                        <div>
+                          <label className="text-lg font-semibold mb-2 block">
+                            Investment Period (Years)
+                          </label>
+                          <Input
+                            type="number"
+                            placeholder="e.g., 10"
+                            value={years}
+                            onChange={(e) => setYears(e.target.value)}
+                            className="text-lg h-12"
+                          />
                         </div>
                       </div>
-                    )}
-                  </div>
+                      <Button onClick={handleWealthCalculation} className="w-full font-bold text-xl py-6">
+                        <Zap className="w-6 h-6 mr-3" />
+                        Calculate Wealth Growth
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="text-lg font-semibold mb-2 block">
+                            Goal Name
+                          </label>
+                          <Input
+                            type="text"
+                            placeholder="e.g., iPhone, Car, Trip"
+                            value={goalName}
+                            onChange={(e) => setGoalName(e.target.value)}
+                            className="text-lg h-12"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-lg font-semibold mb-2 block">
+                            Target Amount (₹)
+                          </label>
+                          <Input
+                            type="number"
+                            placeholder="e.g., 134900"
+                            value={targetAmount}
+                            onChange={(e) => setTargetAmount(e.target.value)}
+                            className="text-lg h-12"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Popular Goals */}
+                      <div>
+                        <label className="text-sm font-medium mb-3 block text-muted-foreground">
+                          Popular Goals (Click to select)
+                        </label>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                          {popularGoals.map((goal, index) => (
+                            <Button
+                              key={index}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setGoalName(goal.name);
+                                setTargetAmount(goal.amount.toString());
+                              }}
+                              className="text-xs p-2 h-auto"
+                            >
+                              <div className="text-center">
+                                <div className="font-semibold">{goal.name}</div>
+                                <div className="text-muted-foreground">{formatCurrency(goal.amount)}</div>
+                              </div>
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-lg font-semibold mb-2 block">
+                          Monthly Investment (₹)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 5000"
+                          value={monthlyInvestment}
+                          onChange={(e) => setMonthlyInvestment(e.target.value)}
+                          className="text-lg h-12"
+                        />
+                      </div>
+
+                      <Button onClick={handleGoalCalculation} className="w-full font-bold text-xl py-6">
+                        <Target className="w-6 h-6 mr-3" />
+                        Calculate Time to Goal
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Results */}
+                  {results && (
+                    <div className="mt-8 p-6 rounded-xl border border-gray-800 bg-gradient-to-br from-gray-900/50 to-transparent">
+                      {results.type === 'wealth' ? (
+                        <div>
+                          <div className="text-center mb-6">
+                            <h3 className="text-2xl font-bold mb-2">Your Wealth Journey</h3>
+                            <p className="text-muted-foreground">
+                              Investing {formatCurrency(results.monthlyAmount)}/month for {results.timeYears} years
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Total Investment: {formatCurrency(results.totalInvested)}
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="p-4 rounded-lg border border-green-500/30 bg-green-500/10">
+                              <div className="text-center">
+                                <div className="text-green-400 font-bold text-2xl">
+                                  {formatCurrency(results.conservative)}
+                                </div>
+                                <div className="text-sm text-green-400 mt-1">Conservative (8%)</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {Math.round((results.conservative - results.totalInvested) / results.totalInvested * 100)}% growth
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="p-4 rounded-lg border border-blue-500/30 bg-blue-500/10">
+                              <div className="text-center">
+                                <div className="text-blue-400 font-bold text-2xl">
+                                  {formatCurrency(results.moderate)}
+                                </div>
+                                <div className="text-sm text-blue-400 mt-1">Moderate (12%)</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {Math.round((results.moderate - results.totalInvested) / results.totalInvested * 100)}% growth
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="p-4 rounded-lg border border-purple-500/30 bg-purple-500/10">
+                              <div className="text-center">
+                                <div className="text-purple-400 font-bold text-2xl">
+                                  {formatCurrency(results.aggressive)}
+                                </div>
+                                <div className="text-sm text-purple-400 mt-1">Aggressive (15%)</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {Math.round((results.aggressive - results.totalInvested) / results.totalInvested * 100)}% growth
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="text-center mb-6">
+                            <h3 className="text-2xl font-bold mb-2">Time to Reach: {results.goalName}</h3>
+                            <p className="text-muted-foreground">
+                              Target: {formatCurrency(results.target)} | Monthly: {formatCurrency(results.monthlyAmount)}
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="p-4 rounded-lg border border-green-500/30 bg-green-500/10">
+                              <div className="text-center">
+                                <div className="text-green-400 font-bold text-xl">
+                                  {formatMonths(results.conservative)}
+                                </div>
+                                <div className="text-sm text-green-400 mt-1">Conservative (8%)</div>
+                              </div>
+                            </div>
+
+                            <div className="p-4 rounded-lg border border-blue-500/30 bg-blue-500/10">
+                              <div className="text-center">
+                                <div className="text-blue-400 font-bold text-xl">
+                                  {formatMonths(results.moderate)}
+                                </div>
+                                <div className="text-sm text-blue-400 mt-1">Moderate (12%)</div>
+                              </div>
+                            </div>
+
+                            <div className="p-4 rounded-lg border border-purple-500/30 bg-purple-500/10">
+                              <div className="text-center">
+                                <div className="text-purple-400 font-bold text-xl">
+                                  {formatMonths(results.aggressive)}
+                                </div>
+                                <div className="text-sm text-purple-400 mt-1">Aggressive (15%)</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+                            <div className="text-center text-sm">
+                              <span className="text-cyan-400 font-medium">💡 Pro Tip:</span>
+                              <span className="text-muted-foreground ml-2">
+                                Higher returns come with higher risk. Diversify your investments!
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
