@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,7 @@ export const LoginForm = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,11 +21,22 @@ export const LoginForm = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await signIn(email, password);
+      console.log('Attempting to sign in with email:', email);
+      const { data, error } = await signIn(email, password);
+      
       if (error) {
+        console.error('Sign in error:', error);
         setError(error.message);
+      } else if (data?.session) {
+        console.log('Sign in successful, navigating to dashboard');
+        // Navigate to dashboard or home page after successful login
+        navigate('/dashboard'); // or wherever you want to redirect
+      } else {
+        console.log('Sign in completed but no session returned');
+        setError('Sign in completed but no session was created');
       }
     } catch (err) {
+      console.error('Sign in exception:', err);
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);

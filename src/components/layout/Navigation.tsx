@@ -21,7 +21,7 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 const navItems = [
   { path: "/", label: "Home", icon: Home },
@@ -34,13 +34,28 @@ const navItems = [
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
   if (!user) return null;
 
   const handleSignOut = async () => {
-    await signOut();
+    if (isSigningOut) return; // Prevent multiple clicks
+    
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      // Navigate to login page after successful signout
+      navigate('/login');
+    } catch (error) {
+      console.error('Error during signout:', error);
+      // Even if there's an error, navigate to login since we cleared local state
+      navigate('/login');
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   return (
@@ -97,9 +112,18 @@ export function Navigation() {
                       {user.email}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut}>
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
+                    <DropdownMenuItem onClick={handleSignOut} disabled={isSigningOut}>
+                      {isSigningOut ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                          Signing Out...
+                        </>
+                      ) : (
+                        <>
+                          <LogOut className="w-4 h-4 mr-2" />
+                          Sign Out
+                        </>
+                      )}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -167,13 +191,23 @@ export function Navigation() {
                   variant="ghost"
                   size="sm"
                   className="w-full justify-start hover:bg-gray-800"
+                  disabled={isSigningOut}
                   onClick={() => {
                     handleSignOut();
                     setIsOpen(false);
                   }}
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
+                  {isSigningOut ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                      Signing Out...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </>
+                  )}
                 </Button>
               )}
             </div>
