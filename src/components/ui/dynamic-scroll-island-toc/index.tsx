@@ -8,7 +8,7 @@ import {
     Transition,
     useMotionValue,
     useSpring,
-    useTransform
+    useTransform,
 } from "framer-motion";
 import { useEffect, useState } from "react";
 
@@ -20,16 +20,38 @@ function cn(...classes: (string | undefined | null | boolean)[]): string {
 // Icon components
 function TbCommand({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3" />
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8 9l3 3-3 3m5 0h3"
+      />
     </svg>
   );
 }
 
 function TbSearch({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <circle cx="11" cy="11" r="8" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        cx="11"
+        cy="11"
+        r="8"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -61,7 +83,7 @@ const CommandPalette = ({
   ref,
   className,
   lPrefix = "cmd",
-  transition = { type: "spring", duration: 0.4, bounce: 0.1 }
+  transition = { type: "spring", duration: 0.4, bounce: 0.1 },
 }: Props) => {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(_v || data[0]);
@@ -132,26 +154,25 @@ const CommandPalette = ({
     <MotionConfig transition={transition}>
       {/* Backdrop */}
       <AnimatePresence mode="popLayout" initial={false}>
-  {open && (
-    <motion.div
-      layoutId={`${lPrefix}-${cKey}`}
-      className={cn(
-        "absolute bottom-0 inset-x-0 mx-auto",
-        "bg-black/95 backdrop-blur-md border border-gray-700 shadow-2xl rounded-2xl",
-        "overflow-hidden"
-      )}
-      style={{
-        // Dynamic island is about 130px, leave equal margin
-        maxWidth: "calc(100% - 140px)", // <-- adjust for padding
-      }}
-      initial={{ height: 56, width: 380 }}
-      animate={{ height: "auto", width: "calc(100% - 140px)" }}
-      exit={{ height: 56, width: 380 }}
-    >
-      {/* content here */}
-    </motion.div>
-  )}
-</AnimatePresence>
+        {open && (
+          <motion.div
+            layoutId={`${lPrefix}-${cKey}`}
+            className={cn(
+              "absolute bottom-0 inset-x-0 mx-auto",
+              "bg-black/95 backdrop-blur-md border border-gray-700 shadow-2xl rounded-2xl",
+              "overflow-hidden"
+            )}
+            style={{
+              maxWidth: "calc(100% - 140px)", // dynamic island margin
+            }}
+            initial={{ height: 56, width: 380 }}
+            animate={{ height: "auto", width: "calc(100% - 140px)" }}
+            exit={{ height: 56, width: 380 }}
+          >
+            {/* content here */}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Fixed positioning container */}
       <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center">
@@ -189,12 +210,12 @@ const CommandPalette = ({
               <motion.div
                 layoutId={`${lPrefix}-${cKey}`}
                 className={cn(
-                  "absolute bottom-0 inset-x-0 mx-auto", // ✅ keep it centered
-                  "w-[500px] bg-black/95 backdrop-blur-md border border-gray-700 shadow-2xl rounded-2xl",
+                  "absolute bottom-0 inset-x-0 mx-auto",
+                  "w-[700px] bg-black/95 backdrop-blur-md border border-gray-700 shadow-2xl rounded-2xl",
                   "overflow-hidden"
                 )}
                 initial={{ height: 56, width: 380 }}
-                animate={{ height: "auto", width: 500 }}
+                animate={{ height: "auto", width: 700 }}
                 exit={{ height: 56, width: 380 }}
               >
                 {/* Search Header */}
@@ -216,10 +237,10 @@ const CommandPalette = ({
                   </div>
                 </div>
 
-                {/* Command Items */}
+                {/* Command Items - Grid Layout */}
                 <motion.div
                   layoutId={`${lPrefix}-${iKey}`}
-                  className="max-h-64 overflow-y-auto p-2"
+                  className="p-4"
                 >
                   <CommandItems
                     data={filteredData}
@@ -250,7 +271,7 @@ function ScrollProgressIndicator({ sp }: { sp: MotionValue }) {
   const springOffset = useSpring(strokeDashoffset, {
     stiffness: 400,
     damping: 40,
-    mass: 0.8
+    mass: 0.8,
   });
 
   return (
@@ -281,7 +302,7 @@ function ScrollProgressIndicator({ sp }: { sp: MotionValue }) {
 function CommandItems({
   data,
   setValue,
-  searchQuery
+  searchQuery,
 }: {
   data: TOC_INTERFACE[];
   setValue: (v: TOC_INTERFACE) => void;
@@ -320,13 +341,13 @@ function CommandItems({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {data.map((item, index) => (
         <motion.button
           key={item.value || item.name}
           onClick={() => setValue(item)}
           className={cn(
-            "w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center gap-3",
+            "w-full text-left p-3 rounded-lg transition-all duration-200 flex items-start gap-3",
             "hover:bg-gray-800 focus:bg-gray-800 focus:outline-none",
             selectedIndex === index && "bg-gray-800 ring-1 ring-cyan-500/50"
           )}
@@ -336,7 +357,9 @@ function CommandItems({
           transition={{ delay: index * 0.02 }}
         >
           {item.icon && (
-            <div className="w-5 h-5 text-gray-400 flex-shrink-0">{item.icon}</div>
+            <div className="w-5 h-5 text-gray-400 flex-shrink-0">
+              {item.icon}
+            </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="font-medium text-white text-sm">
