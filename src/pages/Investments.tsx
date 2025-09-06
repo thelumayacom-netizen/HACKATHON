@@ -57,9 +57,18 @@ const generateChatResponse = async (prompt, context = '') => {
 
     const data = await response.json();
     
+    // Add this debugging line
+    console.log('Full API response:', data);
+    
+    // Check for API errors first
+    if (data.error) {
+      throw new Error(`API Error: ${data.error.message || 'Unknown error'}`);
+    }
+    
     if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
       return data.candidates[0].content.parts[0].text;
     } else {
+      console.error('Unexpected response structure:', data);
       throw new Error('No response generated');
     }
   } catch (error) {
