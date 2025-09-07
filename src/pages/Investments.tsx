@@ -1,36 +1,33 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { authService } from '@/lib/auth';
+import { portfolioService } from '@/lib/portfolioService';
 import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   BarChart3,
   Brain,
-  CheckCircle,
+  Check,
   DollarSign,
-  Lightbulb,
+  ExternalLink,
   MessageSquare,
   Send,
+  Shield,
   Sparkles,
   Target,
   TrendingUp,
-  Zap,
-  X,
-  Shield,
-  AlertTriangle,
-  Check,
-  ExternalLink,
   Wallet,
-  ArrowUp,
-  ArrowDown,
-  History
+  X,
+  Zap
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { portfolioService } from '@/lib/portfolioService';
-import { authService } from '@/lib/auth';
+import { useEffect, useState } from "react";
 
 // Note: In a real app, you'd use environment variables
-const GEMINI_API_KEY = "AIzaSyDe6spC8MtT4nBM62eE4uvuIInIMIEX8C8";
+const GEMINI_API_KEY = "AIzaSyCPsHbx-N8WRnRWcSpvlLytVL3sXeZEuXQ";
 
 // Simulating the Google Generative AI library functionality
 const generateChatResponse = async (prompt, context = '') => {
