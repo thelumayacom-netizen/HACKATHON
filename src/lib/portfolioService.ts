@@ -72,6 +72,18 @@ export interface CryptoHolding {
   updated_at: string;
 }
 
+export interface ExpenseCategory {
+  category: string;
+  amount: number;
+  percentage: number;
+}
+
+export interface ExpenseDistribution {
+  expenses: ExpenseCategory[];
+  totalExpenses: number;
+  period: number;
+}
+
 /**
  * Following the same pattern as transactions file - cast supabase to any
  * to avoid TypeScript errors with generated types
@@ -583,6 +595,86 @@ export const portfolioService = {
     } catch (error) {
       console.error('Update crypto prices exception:', error);
       return { data: null, error: 'Failed to update crypto prices' };
+    }
+  },
+  async getExpenseDistribution(userId: string, days: number = 30) {
+    try {
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - days);
+
+      const resp = await (sb
+        .from('transactions')
+        .select('category, amount')
+        .eq('user_id', userId)
+        .gte('created_at', fromDate.toISOString())
+        .order('created_at', { ascending: false }) as unknown as { data: any[] | null; error: any });
+
+      const { data, error } = resp;
+
+      if (error) {
+        console.error('Expense distribution fetch error:', error);
+        return { data: null, error: error.message ?? JSON.stringify(error) };
+      }
+
+      // Group by category and sum amounts
+      const categoryTotals = data?.reduce((acc: Record<string, number>, transaction) => {
+        const category = transaction.category || 'Others';
+        const amount = Number(transaction.amount) || 0;
+        acc[category] = (acc[category] || 0) + Math.abs(amount);
+        return acc;
+      }, {}) || {};
+
+      // Convert to array format for pie chart
+      const expenseData = Object.entries(categoryTotals)
+        .map(([category, amount]) => ({
+          category,
+          amount: amount as number,
+          percentage: 0 // Will be calculated below
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
+      // Calculate percentages
+      const totalExpenses = expenseData.reduce((sum, item) => sum + item.amount, 0);
+      expenseData.forEach(item => {
+        item.percentage = totalExpenses > 0 ? Math.round((item.amount / totalExpenses) * 100) : 0;
+      });
+
+      return { 
+        data: {
+          expenses: expenseData,
+          totalExpenses,
+          period: days
+        }, 
+        error: null 
+      };
+    } catch (error) {
+      console.error('Get expense distribution exception:', error);
+      return { data: null, error: 'Failed to fetch expense distribution' };
+    }
+  },
+
+  // Get top spending categories
+  async getTopSpendingCategories(userId: string, days: number = 30, limit: number = 5) {
+    try {
+      const distributionResult = await this.getExpenseDistribution(userId, days);
+      
+      if (distributionResult.error || !distributionResult.data) {
+        return distributionResult;
+      }
+
+      const topCategories = distributionResult.data.expenses.slice(0, limit);
+      
+      return {
+        data: {
+          categories: topCategories,
+          totalExpenses: distributionResult.data.totalExpenses,
+          period: days
+        },
+        error: null
+      };
+    } catch (error) {
+      console.error('Get top spending categories exception:', error);
+      return { data: null, error: 'Failed to fetch top spending categories' };
     }
   },
 };

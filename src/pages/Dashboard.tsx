@@ -528,12 +528,15 @@ export default function Dashboard() {
   const [targetAmount, setTargetAmount] = useState('');
   const [goalName, setGoalName] = useState('');
   const [results, setResults] = useState(null);
+  const [expenseDistribution, setExpenseDistribution] = useState<ExpenseDistribution | null>(null);
+  const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
 
   useEffect(() => {
     // TODO: replace with Supabase query
     fetchAnalysis();
     fetchPersonality();
     fetchPortfolio();
+    fetchExpenseDistribution(); // Add this line
   }, []);
 
   const fetchAnalysis = async () => {
@@ -586,6 +589,29 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Error in fetchPortfolio:', error);
+    }
+  };
+
+  const fetchExpenseDistribution = async () => {
+    try {
+      setIsLoadingExpenses(true);
+      const { user } = await authService.getCurrentUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return;
+      }
+
+      // Fetch expense distribution for last 30 days
+      const expenseResult = await portfolioService.getExpenseDistribution(user.id, 30);
+      if (expenseResult.error) {
+        console.error('Error fetching expense distribution:', expenseResult.error);
+      } else {
+        setExpenseDistribution(expenseResult.data);
+      }
+    } catch (error) {
+      console.error('Error in fetchExpenseDistribution:', error);
+    } finally {
+      setIsLoadingExpenses(false);
     }
   };
 
@@ -746,7 +772,7 @@ export default function Dashboard() {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-8">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5 mb-8">
             <TabsTrigger value="overview">
               <Activity className="w-4 h-4 mr-2" />
               Overview
@@ -755,10 +781,10 @@ export default function Dashboard() {
               <Brain className="w-4 h-4 mr-2" />
               AI Oracle
             </TabsTrigger>
-            <TabsTrigger value="risk-profile">
+            {/* <TabsTrigger value="risk-profile">
               <Target className="w-4 h-4 mr-2" />
               Risk Profile
-            </TabsTrigger>
+            </TabsTrigger> */}
             <TabsTrigger value="empire-value">
               <Rocket className="w-4 h-4 mr-2" />
               Empire Value
@@ -841,27 +867,235 @@ export default function Dashboard() {
             </div>
 
             {/* Performance Chart Placeholder */}
+
+            {/* Expense Distribution Chart */}
             <Card>
               <CardHeader>
-                <CardTitle>Portfolio Performance Matrix</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Expense Distribution (Last 30 Days)</span>
+                  {isLoadingExpenses && (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
+                      <span className="text-sm text-muted-foreground">Loading...</span>
+                    </div>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-80 rounded-2xl flex items-center justify-center relative overflow-hidden border border-gray-800">
-                  <div className="text-center">
-                    <TrendingUp className="w-16 h-16 mx-auto mb-6" style={{ color: '#00ffff' }} />
-                    <p className="text-2xl font-bold mb-2" style={{ color: '#00ffff' }}>
-                      Advanced Analytics Loading
-                    </p>
-                    <p className="text-muted-foreground">
-                      Neural network processing your financial data...
-                    </p>
-                    <div className="mt-4 flex justify-center space-x-2">
-                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#00ffff' }}></div>
-                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#00ffff', animationDelay: '0.2s' }}></div>
-                      <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#00ffff', animationDelay: '0.4s' }}></div>
+                {expenseDistribution && expenseDistribution.expenses.length > 0 ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Circular Pie Chart */}
+                    <div className="flex flex-col items-center space-y-6">
+                      <div className="text-center mb-4">
+                        <div className="text-3xl font-bold mb-2" style={{ color: '#00ffff' }}>
+                          ₹{expenseDistribution.totalExpenses.toLocaleString('en-IN')}
+                        </div>
+                        <p className="text-sm text-muted-foreground">Total Expenses</p>
+                      </div>
+
+                      {/* SVG Pie Chart */}
+                      <div className="relative">
+                        <svg width="280" height="280" viewBox="0 0 280 280" className="transform -rotate-90">
+                          <circle
+                            cx="140"
+                            cy="140"
+                            r="120"
+                            fill="transparent"
+                            stroke="#1f2937"
+                            strokeWidth="2"
+                          />
+                          {(() => {
+                            const colors = [
+                              '#00ffff', '#ff6b6b', '#4ecdc4', '#45b7d1',
+                              '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff'
+                            ];
+                            let cumulativePercentage = 0;
+                            const radius = 120;
+                            const circumference = 2 * Math.PI * radius;
+
+                            return expenseDistribution.expenses.map((expense, index) => {
+                              const strokeDasharray = `${(expense.percentage / 100) * circumference} ${circumference}`;
+                              const strokeDashoffset = -cumulativePercentage * circumference / 100;
+                              const color = colors[index % colors.length];
+
+                              cumulativePercentage += expense.percentage;
+
+                              return (
+                                <circle
+                                  key={expense.category}
+                                  cx="140"
+                                  cy="140"
+                                  r={radius}
+                                  fill="transparent"
+                                  stroke={color}
+                                  strokeWidth="24"
+                                  strokeDasharray={strokeDasharray}
+                                  strokeDashoffset={strokeDashoffset}
+                                  className="transition-all duration-300 hover:stroke-width-28"
+                                />
+                              );
+                            });
+                          })()}
+
+                          {/* Center circle for better visual */}
+                          <circle
+                            cx="140"
+                            cy="140"
+                            r="80"
+                            fill="#0a0a0a"
+                            stroke="#1f2937"
+                            strokeWidth="2"
+                          />
+                        </svg>
+
+                        {/* Center text */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-xl font-bold" style={{ color: '#00ffff' }}>
+                              {expenseDistribution.expenses.length}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Categories</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Legend */}
+                      <div className="grid grid-cols-2 gap-2 max-w-sm">
+                        {expenseDistribution.expenses.map((expense, index) => {
+                          const colors = [
+                            '#00ffff', '#ff6b6b', '#4ecdc4', '#45b7d1',
+                            '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff'
+                          ];
+                          const color = colors[index % colors.length];
+
+                          return (
+                            <div key={expense.category} className="flex items-center space-x-2 text-xs">
+                              <div
+                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: color }}
+                              />
+                              <span className="truncate text-muted-foreground">
+                                {expense.category.length > 15
+                                  ? expense.category.substring(0, 15) + '...'
+                                  : expense.category
+                                }
+                              </span>
+                              <span className="font-semibold ml-auto" style={{ color }}>
+                                {expense.percentage}%
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Expense Details and Insights */}
+                    <div className="space-y-6">
+                      <div className="p-6 rounded-2xl border border-gray-800">
+                        <h3 className="font-bold text-xl mb-4 flex items-center">
+                          <PieChart className="w-5 h-5 mr-2" style={{ color: '#00ffff' }} />
+                          Category Breakdown
+                        </h3>
+                        <div className="space-y-4">
+                          {expenseDistribution.expenses.slice(0, 5).map((expense, index) => {
+                            const colors = [
+                              '#00ffff', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4'
+                            ];
+                            const color = colors[index % colors.length];
+
+                            return (
+                              <div key={expense.category} className="flex items-center justify-between p-3 rounded-lg border border-gray-800">
+                                <div className="flex items-center space-x-3">
+                                  <div
+                                    className="w-4 h-4 rounded-full"
+                                    style={{ backgroundColor: color }}
+                                  />
+                                  <div>
+                                    <p className="font-medium text-sm">{expense.category}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      ₹{expense.amount.toLocaleString('en-IN')}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-bold text-lg" style={{ color }}>
+                                    {expense.percentage}%
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Quick Stats */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 rounded-xl border border-gray-800 text-center">
+                          <div className="text-2xl font-bold mb-1" style={{ color: '#00ffff' }}>
+                            ₹{Math.round(expenseDistribution.totalExpenses / 30).toLocaleString('en-IN')}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Daily Average</p>
+                        </div>
+                        <div className="p-4 rounded-xl border border-gray-800 text-center">
+                          <div className="text-2xl font-bold mb-1" style={{ color: '#00ffff' }}>
+                            {expenseDistribution.expenses[0]?.percentage || 0}%
+                          </div>
+                          <p className="text-xs text-muted-foreground">Top Category</p>
+                        </div>
+                      </div>
+
+                      {/* Top Category Highlight */}
+                      {expenseDistribution.expenses[0] && (
+                        <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">Highest Spending</p>
+                              <p className="text-lg font-bold" style={{ color: '#00ffff' }}>
+                                {expenseDistribution.expenses[0].category}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">Amount</p>
+                              <p className="text-xl font-bold" style={{ color: '#00ffff' }}>
+                                ₹{expenseDistribution.expenses[0].amount.toLocaleString('en-IN')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Spending Insight */}
+                      <div className="p-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-2 h-2 rounded-full mt-2 bg-yellow-500"></div>
+                          <div>
+                            <p className="font-medium text-sm">Spending Insight</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Your top 3 categories represent {' '}
+                              {expenseDistribution.expenses.slice(0, 3).reduce((sum, exp) => sum + exp.percentage, 0)}%
+                              {' '} of your total expenses. Consider reviewing these areas for potential savings.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="h-80 rounded-2xl flex items-center justify-center border border-gray-800">
+                    <div className="text-center">
+                      <PieChart className="w-16 h-16 mx-auto mb-6" style={{ color: '#00ffff' }} />
+                      <p className="text-2xl font-bold mb-2" style={{ color: '#00ffff' }}>
+                        {isLoadingExpenses ? 'Loading Expenses...' : 'No Expenses Found'}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {isLoadingExpenses
+                          ? 'Analyzing your spending patterns...'
+                          : 'Start tracking expenses to see your spending distribution'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -908,7 +1142,7 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* Risk Profile Tab */}
-          <TabsContent value="risk-profile" className="space-y-8">
+          {/* <TabsContent value="risk-profile" className="space-y-8">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-3 text-2xl">
@@ -958,7 +1192,7 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
 
           {/* Empire Value Tab */}
           <TabsContent value="empire-value" className="space-y-8">
